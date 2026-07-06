@@ -44,17 +44,29 @@ _HOT_STOCK_POOL = [
     "002837","300499","688228","300659","002230",
     # ---- 机器人 / 自动化 ----
     "300024","688017","002747","300124","688160","002527","300508","688686",
-    "300496","300567","002979","688400","300607","688003","002444",
-    # ---- 新能源 / 锂电 / 光伏 ----
+    "300496","300567","002979","688400","300607","688003","002444","688165",
+    "300161","688320","002698","300278","603283","688218","300403","002520",
+    # ---- 新能源 / 锂电 / 光伏 / 储能 ----
     "300750","002594","601012","688599","300274","300763","002459","688223",
-    "600438","300316","300724","688779","002129","300751","688390",
+    "600438","300316","300724","688779","002129","300751","688390","688005",
+    "300568","002460","300014","688116","603659","300118","688680","300438",
+    "600089","300827","002335","600406","300693","688567","603806",
     # ---- 消费电子 / 汽车 ----
     "002475","601138","300433","002241","600745","688036","002920","300115",
-    "600104","002074","300207","688567","300438",
+    "600104","002074","300207","688567","300438","002050","300679","601799",
+    "002230","688208","300124","002594","601689","600733","688981",
     # ---- 医药生物 ----
-    "300760","300759","603259","688276","300122","600196","688180",
-    # ---- 软件 / 信创 ----
-    "688111","688561","300454","002439","688188","300369","688568",
+    "300760","300759","603259","688276","300122","600196","688180","688185",
+    "300015","600276","300347","300601","002007","688202","300529",
+    # ---- 软件 / 信创 / AI应用 ----
+    "688111","688561","300454","002439","688188","300369","688568","300339",
+    "688088","300624","002410","688777","300033","688787","300598",
+    # ---- 大金融 / 券商 ----
+    "600030","601688","300059","600036","601318","601166","002142","600919",
+    # ---- 国防军工 ----
+    "600893","600760","002013","688239","300775","300034","600862","688297",
+    # ---- 消费 / 白酒 / 家电 ----
+    "600519","000858","000568","002304","000333","600887","603288","002557",
 ]
 
 # 去重
@@ -65,8 +77,15 @@ _HOT_STOCK_POOL = list(dict.fromkeys(_HOT_STOCK_POOL))
 # 工具函数
 # ================================================================
 def _code_with_market(code: str) -> str:
-    """纯数字代码 → 'sh688169' / 'sz002969' 格式"""
-    return ("sh" if code.startswith(("6", "68")) else "sz") + code
+    """纯数字代码 → 'sh688169' / 'sz002969' / 'hk01810' 格式"""
+    # 港股：5 位数字代码（优先判断，避免和深圳 00/03 开头混淆）
+    if len(code) == 5 and code.isdigit():
+        return "hk" + code
+    if code.startswith(("68", "6")):
+        return "sh" + code
+    elif code.startswith(("0", "3", "2")):
+        return "sz" + code
+    return "sz" + code
 
 
 def _safe_float(val) -> float:
@@ -109,37 +128,56 @@ def _fetch_tencent_quotes(codes: list) -> dict:
                 if not line or "pv_none_match" in line:
                     continue
                 # 格式: v_sh688169="1~石头科技~688169~95.35~..."
-                # 去掉 v_shXXXXXX=" 前缀和尾部 "
+                #       v_hk01810="100~小米集团-W~01810~23.280~..."
                 idx = line.find('"')
                 if idx == -1:
                     continue
+                # 判断是 A 股还是港股
+                is_hk = line.startswith("v_hk")
                 payload = line[idx + 1 : line.rfind('"')]
                 parts = payload.split("~")
                 if len(parts) < 40:
                     continue
 
                 code = parts[2]
-                # 腾讯格式字段位置（已验证）:
-                # [1]名称 [2]代码 [3]最新价 [4]昨收 [5]今开
-                # [6]成交量(手) [32]涨跌幅% [33]最高 [34]最低 [38]换手率%
-                # [37]成交额(万元) [57]成交额(万元,更精确)
-                amount_wan = _safe_float(parts[57]) if len(parts) > 57 and parts[57] else (
-                    _safe_float(parts[37]) if len(parts) > 37 else 0)
-                amount = amount_wan * 10000  # 万元 → 元
-
-                result[code] = {
-                    "code": code,
-                    "name": parts[1],
-                    "price": _safe_float(parts[3]),
-                    "pre_close": _safe_float(parts[4]),
-                    "open": _safe_float(parts[5]),
-                    "high": _safe_float(parts[33]) if len(parts) > 33 else 0,
-                    "low": _safe_float(parts[34]) if len(parts) > 34 else 0,
-                    "pct_change": _safe_float(parts[32]) if len(parts) > 32 else 0,
-                    "volume": _safe_float(parts[6]),
-                    "amount": amount,
-                    "turnover": _safe_float(parts[38]) if len(parts) > 38 else 0,
-                }
+                if is_hk:
+                    # 港股格式：[37]成交额直接是港元，不需转换
+                    result[code] = {
+                        "code": code,
+                        "name": parts[1].replace("-W", ""),  # 简化名称
+                        "price": _safe_float(parts[3]),
+                        "pre_close": _safe_float(parts[4]),
+                        "open": _safe_float(parts[5]),
+                        "high": _safe_float(parts[33]) if len(parts) > 33 else 0,
+                        "low": _safe_float(parts[34]) if len(parts) > 34 else 0,
+                        "pct_change": _safe_float(parts[32]) if len(parts) > 32 else 0,
+                        "volume": _safe_float(parts[6]),
+                        "amount": _safe_float(parts[37]) if len(parts) > 37 else 0,
+                        "turnover": _safe_float(parts[39]) if len(parts) > 39 else 0,
+                    }
+                else:
+                    # A 股格式：[37][57]是万元，需×10000转元
+                    amount_wan = _safe_float(parts[57]) if len(parts) > 57 and parts[57] else (
+                        _safe_float(parts[37]) if len(parts) > 37 else 0)
+                    amount = amount_wan * 10000  # 万元 → 元
+                    # [44]=PE [45]=总市值(亿) [46]=PB
+                    market_cap = _safe_float(parts[45]) if len(parts) > 45 else 0  # 亿元
+                    pe = _safe_float(parts[44]) if len(parts) > 44 else 0
+                    result[code] = {
+                        "code": code,
+                        "name": parts[1],
+                        "price": _safe_float(parts[3]),
+                        "pre_close": _safe_float(parts[4]),
+                        "open": _safe_float(parts[5]),
+                        "high": _safe_float(parts[33]) if len(parts) > 33 else 0,
+                        "low": _safe_float(parts[34]) if len(parts) > 34 else 0,
+                        "pct_change": _safe_float(parts[32]) if len(parts) > 32 else 0,
+                        "volume": _safe_float(parts[6]),
+                        "amount": amount,
+                        "turnover": _safe_float(parts[38]) if len(parts) > 38 else 0,
+                        "market_cap": market_cap,
+                        "pe": pe,
+                    }
             return result
 
         except Exception as e:
@@ -182,20 +220,23 @@ def fetch_history_kline(code: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Dat
                 logger.warning("股票 %s 历史K线为空", code)
                 return None
 
-            # 腾讯 K 线格式: [date, open, close, high, low, volume]
+            # 腾讯 K 线格式: [date, open, close, high, low, volume, (港股有第7个元数据)]
             records = []
             for row in rows:
                 if len(row) < 6:
                     continue
-                records.append({
-                    "date": row[0],
-                    "open": float(row[1]),
-                    "close": float(row[2]),
-                    "high": float(row[3]),
-                    "low": float(row[4]),
-                    "volume": float(row[5]),
-                    "amount": float(row[2]) * float(row[5]) * 100,  # 估算：均价×量
-                })
+                try:
+                    records.append({
+                        "date": str(row[0]),
+                        "open": float(row[1]),
+                        "close": float(row[2]),
+                        "high": float(row[3]),
+                        "low": float(row[4]),
+                        "volume": float(row[5]),
+                        "amount": float(row[2]) * float(row[5]) * 100,
+                    })
+                except (ValueError, TypeError):
+                    continue
 
             df = pd.DataFrame(records)
             df["date"] = pd.to_datetime(df["date"])
@@ -272,11 +313,13 @@ def fetch_market_top_gainers(top_n: int = MARKET_HOT_TOP_N) -> Optional[pd.DataF
             "代码": code, "名称": q["name"], "最新价": q["price"],
             "涨跌幅": q["pct_change"], "成交额": q["amount"],
             "成交量": q["volume"], "换手率": q["turnover"],
+            "总市值": q.get("market_cap", 0),
+            "市盈率": q.get("pe", 0),
         })
 
     df = pd.DataFrame(rows)
     # 数值化
-    for col in ["涨跌幅", "成交额", "成交量", "换手率"]:
+    for col in ["涨跌幅", "成交额", "成交量", "换手率", "总市值", "市盈率"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
     df = df.dropna(subset=["涨跌幅"]).sort_values("涨跌幅", ascending=False)
@@ -310,6 +353,17 @@ def fetch_sector_stocks(keywords: list, sector_label: str = "") -> Optional[pd.D
             "300308","300394","300502","688498","300570","688313","002281","688205",
             "300620","688195","300548",
         ],
+        "机器人": [
+            "300024","688017","002747","300124","688160","002527","300508","688686",
+            "300496","300567","002979","688400","300607","688003","002444","688165",
+            "300161","688320","002698","300278","603283","688218","300403",
+        ],
+        "新能源": [
+            "300750","002594","601012","688599","300274","300763","002459","688223",
+            "600438","300316","300724","688779","002129","300751","688390","688005",
+            "300568","002460","300014","688116","603659","300118","688680",
+            "600089","300827","002335","600406","300693",
+        ],
     }
 
     # 匹配关键词
@@ -337,11 +391,13 @@ def fetch_sector_stocks(keywords: list, sector_label: str = "") -> Optional[pd.D
             "代码": code, "名称": q["name"], "最新价": q["price"],
             "涨跌幅": q["pct_change"], "成交额": q["amount"],
             "成交量": q["volume"], "换手率": q["turnover"],
+            "总市值": q.get("market_cap", 0),
+            "市盈率": q.get("pe", 0),
             "所属板块": matched_label or "热门板块",
         })
 
     df = pd.DataFrame(rows)
-    for col in ["涨跌幅", "成交额", "成交量", "换手率"]:
+    for col in ["涨跌幅", "成交额", "成交量", "换手率", "总市值", "市盈率"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
     return df.sort_values("涨跌幅", ascending=False)
@@ -373,11 +429,12 @@ def fetch_market_indices() -> dict:
                 continue
             name_map = {"sh000001": "上证指数", "sz399001": "深证成指", "sz399006": "创业板指"}
             code = line[line.find("_s_") + 3 : line.find("=")]
+            # 新浪短格式: 名称,最新价,涨跌额,涨跌幅%,...
             result[code] = {
                 "name": name_map.get(code, code),
-                "price": _safe_float(parts[0]),
-                "change": _safe_float(parts[1]),
-                "pct_change": _safe_float(parts[2]),
+                "price": _safe_float(parts[1]) if len(parts) > 1 else 0,
+                "change": _safe_float(parts[2]) if len(parts) > 2 else 0,
+                "pct_change": _safe_float(parts[3]) if len(parts) > 3 else 0,
             }
         return result
     except Exception as e:
@@ -470,6 +527,8 @@ def generate_demo_market_data(n: int = 30) -> pd.DataFrame:
             "涨跌幅": pct, "成交额": random.uniform(5e7, 5e9),
             "成交量": random.randint(10000, 800000),
             "换手率": round(random.uniform(1, 15), 2),
+            "总市值": round(random.uniform(20, 5000), 1),
+            "市盈率": round(random.uniform(10, 300), 1),
         })
     return pd.DataFrame(rows)
 
@@ -503,6 +562,145 @@ def generate_demo_sector_data(keywords: list) -> pd.DataFrame:
                 "涨跌幅": pct, "成交额": random.uniform(1e7, 4e9),
                 "成交量": random.randint(10000, 500000),
                 "换手率": round(random.uniform(1, 12), 2),
+                "总市值": round(random.uniform(30, 8000), 1),
+                "市盈率": round(random.uniform(15, 200), 1),
                 "所属板块": sector_key,
             })
     return pd.DataFrame(rows)
+
+
+# ================================================================
+# 8. 市场全貌数据（涨跌家数、成交额、涨停数）
+# ================================================================
+def fetch_market_breadth() -> dict:
+    """获取市场宽度数据：涨跌家数、成交额对比、涨停跌停数"""
+    result = {"涨家数": None, "跌家数": None, "涨停数": None, "跌停数": None,
+              "两市成交额": 0, "昨日成交额": None, "放量缩量": None}
+
+    # 从腾讯行情池估算涨停跌停
+    quotes = _fetch_tencent_quotes(_HOT_STOCK_POOL)
+    if quotes:
+        up_limit = sum(1 for q in quotes.values() if q["pct_change"] >= 9.9)
+        down_limit = sum(1 for q in quotes.values() if q["pct_change"] <= -9.9)
+        result["涨停数"] = up_limit
+        result["跌停数"] = down_limit
+
+    # 从 Sina 获取成交额（稳定可靠）
+    # 短格式: name,price,change,pct,volume(手),amount(万元)
+    try:
+        import requests as _r
+        r2 = _r.get("https://hq.sinajs.cn/list=s_sh000001,s_sz399001",
+                    headers={"User-Agent": _UA, "Referer": "https://finance.sina.com.cn/"}, timeout=10)
+        total_amt = 0
+        for line in r2.text.strip().split(";"):
+            line = line.strip()
+            if not line: continue
+            idx = line.find('"')
+            if idx == -1: continue
+            parts = line[idx+1:line.rfind('"')].split(",")
+            if len(parts) >= 6:
+                total_amt += _safe_float(parts[5]) * 10000  # 万元 → 元
+        if total_amt > 0:
+            result["两市成交额"] = total_amt
+    except Exception:
+        pass
+
+    # 尝试 eastmoney 获取涨跌家数
+    try:
+        import requests as _r
+        h = {"User-Agent": _UA, "Referer": "https://quote.eastmoney.com/"}
+        em = _r.get("https://push2.eastmoney.com/api/qt/stock/get",
+                    params={"secid": "1.000001", "fields": "f48,f104,f105,f170"},
+                    headers=h, timeout=8)
+        if em.status_code == 200:
+            d = em.json().get("data", {})
+            result["涨家数"] = d.get("f104")
+            result["跌家数"] = d.get("f105")
+            # 用 eastmoney 的精确值覆盖
+            sh_amt = d.get("f48", 0)
+            if sh_amt > 0:
+                result["上证成交额"] = sh_amt
+    except Exception:
+        pass
+
+    # 成交额对比：从本地存档读取昨日数据
+    try:
+        import os as _os, csv as _csv
+        from config import CSV_ARCHIVE_DIR
+        archive = _os.path.join(CSV_ARCHIVE_DIR, "market_breadth.csv")
+        if _os.path.exists(archive):
+            with open(archive, "r", encoding="utf-8-sig") as f:
+                rows = list(_csv.DictReader(f))
+                if rows:
+                    last = rows[-1]
+                    yesterday_amt = float(last.get("成交额", 0))
+                    if yesterday_amt > 0 and result["两市成交额"] > 0:
+                        ratio = result["两市成交额"] / yesterday_amt
+                        result["昨日成交额"] = yesterday_amt
+                        if ratio > 1.15: result["放量缩量"] = "放量"
+                        elif ratio < 0.85: result["放量缩量"] = "缩量"
+                        else: result["放量缩量"] = "持平"
+    except Exception:
+        pass
+
+    # 存档今日数据
+    if result["两市成交额"] > 0:
+        try:
+            import os as _os, csv as _csv
+            from config import CSV_ARCHIVE_DIR
+            _os.makedirs(CSV_ARCHIVE_DIR, exist_ok=True)
+            archive = _os.path.join(CSV_ARCHIVE_DIR, "market_breadth.csv")
+            file_exists = _os.path.exists(archive)
+            with open(archive, "a", newline="", encoding="utf-8-sig") as f:
+                w = _csv.writer(f)
+                if not file_exists:
+                    w.writerow(["日期", "成交额", "涨家数", "跌家数", "涨停数", "跌停数"])
+                w.writerow([pd.Timestamp.now().strftime("%Y%m%d"), result["两市成交额"],
+                           result["涨家数"], result["跌家数"], result["涨停数"], result["跌停数"]])
+        except Exception:
+            pass
+
+    return result
+
+
+# ================================================================
+# 9. 财经新闻抓取
+# ================================================================
+def fetch_finance_news() -> dict:
+    """抓取新浪财经新闻，按关键词筛选A股相关"""
+    news = {"利好": [], "利空": [], "其他": []}
+    stock_kw = [
+        (["涨停","大涨","拉升","翻红","反弹","突破","新高","放量上攻","资金涌入",
+          "政策利好","业绩预增","回购","增持","分红","降准","降息","国产替代",
+          "AI芯片","算力","半导体突破","光模块","机器人产业","新能源车",
+          "光伏装机","锂电回收","创新药获批","消费刺激","基建投资"], "利好"),
+        (["跌停","大跌","跳水","杀跌","破位","新低","缩量阴跌","资金出逃",
+          "减持","暴雷","亏损","退市风险","ST","问询函","监管","加息",
+          "关税","制裁","地缘冲突","限售解禁","股东套现"], "利空"),
+    ]
+    try:
+        import requests as _r
+        r = _r.get("https://feed.mix.sina.com.cn/api/roll/get",
+                   params={"pageid": "153", "lid": "2509", "k": "", "num": "50", "page": "1"},
+                   headers={"User-Agent": _UA}, timeout=10)
+        if r.status_code != 200:
+            return news
+        items = r.json().get("result", {}).get("data", [])
+        for item in items:
+            title = item.get("title", "")
+            intro = item.get("intro", "")[:80]
+            url = item.get("url", "")
+            matched = False
+            for keywords, tag in stock_kw:
+                for kw in keywords:
+                    if kw in title or kw in intro:
+                        news[tag].append({"title": title, "intro": intro, "url": url})
+                        matched = True
+                        break
+                if matched:
+                    break
+            if not matched and any(kw in title for kw in ["A股","沪指","深指","创业板","科创板"]):
+                news["其他"].append({"title": title, "intro": intro, "url": url})
+    except Exception:
+        pass
+    return news

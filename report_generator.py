@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 # ================================================================
 # 一、控制台报告
 # ================================================================
-def print_console_report(watch_results: dict, hot_results: list, run_time: str):
+def print_console_report(watch_results: dict, hot_results: list, run_time: str,
+                        daily_summary: str = ""):
     """
     在控制台打印清晰结构化分析报告。
     """
@@ -98,14 +99,27 @@ def print_console_report(watch_results: dict, hot_results: list, run_time: str):
     if not hot_results:
         print("    暂无符合条件的涨幅靠前个股")
     else:
-        print(f"\n  {'序号':<5} {'名称':<10} {'代码':<8} {'涨幅':<8} {'成交额':<14} {'板块'}")
-        print(f"  {'—'*5} {'—'*10} {'—'*8} {'—'*8} {'—'*14} {'—'*20}")
+        print(f"\n  {'序号':<5} {'名称':<10} {'代码':<8} {'涨幅':<8} {'成交额':<12} {'市值':<10} {'板块'}")
+        print(f"  {'—'*5} {'—'*10} {'—'*8} {'—'*8} {'—'*12} {'—'*10} {'—'*18}")
         for i, stock in enumerate(hot_results, 1):
+            mc = stock.get('market_cap', 0)
+            mc_str = f"{mc:.0f}亿" if mc > 0 else "—"
+            pe = stock.get('pe', 0)
+            pe_str = f" PE{pe:.0f}" if pe > 0 else ""
             print(f"  {i:<5} {stock['name']:<10} {stock['code']:<8} "
                   f"{_color_pct(stock['pct_change']):<8} "
-                  f"{_fmt_amount(stock['amount']):<14} "
+                  f"{_fmt_amount(stock['amount']):<12} "
+                  f"{mc_str:<10} "
                   f"{stock.get('sector', '')}")
-            print(f"         ↳ {stock.get('driver_note', '')}")
+            print(f"         ↳ {stock.get('driver_note', '')}{pe_str}")
+
+    # ---- 今日投资建议 ----
+    if daily_summary:
+        print(f"\n\n  【三、今日投资建议】")
+        print(f"  {sub}")
+        for line in daily_summary.split("\n"):
+            print(f"  {line.strip()}")
+        print(f"  {sub}")
 
     # ---- 免责声明 ----
     print(f"\n  {sep}")
@@ -117,7 +131,7 @@ def print_console_report(watch_results: dict, hot_results: list, run_time: str):
 # 二、HTML 报告
 # ================================================================
 def generate_html_report(watch_results: dict, hot_results: list,
-                         run_time: str) -> str:
+                         run_time: str, daily_summary: str = "") -> str:
     """
     生成 HTML 格式分析报告，保存到 D:/GUPIAO。
 
@@ -129,7 +143,7 @@ def generate_html_report(watch_results: dict, hot_results: list,
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     filepath = os.path.join(OUTPUT_DIR, filename)
 
-    html = _build_html(watch_results, hot_results, run_time)
+    html = _build_html(watch_results, hot_results, run_time, daily_summary)
 
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(html)
@@ -138,7 +152,8 @@ def generate_html_report(watch_results: dict, hot_results: list,
     return filepath
 
 
-def _build_html(watch_results: dict, hot_results: list, run_time: str) -> str:
+def _build_html(watch_results: dict, hot_results: list, run_time: str,
+                daily_summary: str = "") -> str:
     """构建 HTML 页面内容"""
 
     # --- 自选股表格行 ---
@@ -183,7 +198,7 @@ def _build_html(watch_results: dict, hot_results: list, run_time: str) -> str:
             <td>{ma.get('alignment', 'N/A')}<br>{ma.get('ma5_cross_ma10', '')} {ma.get('ma5_cross_ma20', '')}</td>
             <td>DIF:{macd.get('dif', 'N/A')}<br>{macd.get('dif_position', '')}<br>{macd.get('dif_direction', '')}{macd_signal}</td>
             <td>支撑:¥{sr.get('support', 'N/A')}<br>压力:¥{sr.get('resistance', 'N/A')}</td>
-            <td class="suggestion">📋 {suggestion}<br><span class="risk-note">{risk}</span></td>
+            <td class="suggestion">{suggestion}<br><span class="risk-note">{risk}</span><br><span style="font-size:9px;color:#3182ce;">{analysis.get('fundamental','')[:60]}...</span></td>
         </tr>"""
 
     # --- 热门个股表格行 ---
@@ -193,153 +208,241 @@ def _build_html(watch_results: dict, hot_results: list, run_time: str) -> str:
         pct_class = "up" if pct >= 0 else "down"
         pct_str = f"+{pct:.2f}%" if pct >= 0 else f"{pct:.2f}%"
 
+        mc = stock.get("market_cap", 0)
+        mc_str = f"{mc:.0f} 亿" if mc > 0 else "—"
+        pe = stock.get("pe", 0)
+        pe_str = f" PE {pe:.0f}" if pe > 0 else ""
         hot_rows += f"""
         <tr>
             <td>{i}</td>
             <td><strong>{stock['name']}</strong><br><span class="code">{stock['code']}</span></td>
             <td class="{pct_class}">{pct_str}</td>
             <td>{_fmt_amount(stock.get('amount', 0))}</td>
+            <td>{mc_str}</td>
             <td>{stock.get('turnover', 'N/A')}%</td>
             <td>{stock.get('sector', '')}</td>
-            <td class="driver">{stock.get('driver_note', '')}</td>
+            <td class="driver">{stock.get('driver_note', '')}{pe_str}</td>
         </tr>"""
 
-    # --- 完整 HTML ---
+    # --- 完整 HTML（科技感深色主题 + 目录导航）---
+    today = datetime.now().strftime('%Y%m%d')
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{datetime.now().strftime('%Y%m%d')}-股票分析报告</title>
+<title>{today}-股票分析报告</title>
 <style>
+    :root {{
+        --bg: #f0f4f8; --surface: #f8fafc; --card: #ffffff;
+        --border: #e2e8f0; --text: #1a202c; --muted: #718096;
+        --accent: #3182ce; --accent-light: #ebf4ff;
+        --up: #e53e3e; --down: #38a169;
+        --gold: #b7791f; --purple: #805ad5;
+    }}
     * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+    html {{ scroll-behavior: smooth; }}
     body {{
         font-family: -apple-system, BlinkMacSystemFont, "Microsoft YaHei", "Segoe UI", sans-serif;
-        background: #f5f6fa; color: #2d3436; padding: 20px; line-height: 1.6;
+        background: var(--bg); color: var(--text); line-height: 1.6;
     }}
-    .container {{ max-width: 1400px; margin: 0 auto; }}
+    .container {{ max-width: 1400px; margin: 0 auto; padding: 0 24px; }}
+
+    /* ── 顶部横向目录 ── */
+    .toc {{
+        position: sticky; top: 0; z-index: 100;
+        background: rgba(255,255,255,0.95); border-bottom: 1px solid var(--border);
+        padding: 10px 28px; margin-bottom: 20px;
+        backdrop-filter: blur(10px);
+        display: flex; align-items: center; gap: 24px;
+    }}
+    .toc-title {{
+        font-size: 11px; letter-spacing: 1.5px; color: var(--muted);
+        font-weight: 600; white-space: nowrap;
+    }}
+    .toc a {{
+        color: var(--muted); text-decoration: none;
+        font-size: 13px; transition: color 0.15s; white-space: nowrap;
+    }}
+    .toc a:hover, .toc a.active {{ color: var(--accent); font-weight: 600; }}
+    .toc-dot {{ display: none; }}
+
+    /* ── Header ── */
     .header {{
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-        color: white; padding: 30px 40px; border-radius: 12px; margin-bottom: 24px;
+        background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 50%, #3182ce 100%);
+        border-radius: 14px; padding: 32px 44px; margin: 24px 0 30px;
+        color: #fff; position: relative; overflow: hidden;
     }}
-    .header h1 {{ font-size: 26px; margin-bottom: 8px; }}
-    .header .time {{ opacity: 0.8; font-size: 14px; }}
+    .header::before {{
+        content: ''; position: absolute; top: -60%; right: -5%;
+        width: 350px; height: 350px;
+        background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%);
+        border-radius: 50%;
+    }}
+    .header h1 {{
+        font-size: 26px; font-weight: 800; letter-spacing: -0.5px;
+        color: #fff; margin-bottom: 4px; position: relative;
+    }}
+    .header .time {{ opacity: 0.75; font-size: 13px; position: relative; }}
+    .header .badge {{
+        display: inline-block; background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.25); border-radius: 20px;
+        padding: 3px 12px; font-size: 11px; margin-left: 10px; vertical-align: middle;
+    }}
+
+    /* ── Sections ── */
+    section {{ scroll-margin-top: 40px; margin-bottom: 28px; }}
     .section-title {{
-        font-size: 20px; font-weight: 700; color: #1a1a2e;
-        margin: 28px 0 16px; padding-left: 12px;
-        border-left: 4px solid #e17055;
+        font-size: 18px; font-weight: 700; color: #2d3748;
+        margin-bottom: 14px; padding-left: 12px;
+        border-left: 3px solid var(--accent);
+        display: flex; align-items: center; gap: 10px;
     }}
+    .section-title .num {{
+        font-size: 11px; color: var(--accent); background: var(--accent-light);
+        padding: 2px 10px; border-radius: 12px; font-weight: 600;
+    }}
+
+    /* ── Cards ── */
     .card {{
-        background: white; border-radius: 10px; padding: 24px;
-        margin-bottom: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        background: var(--card); border: 1px solid var(--border);
+        border-radius: 10px; padding: 22px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        overflow-x: auto;
     }}
-    table {{
-        width: 100%; border-collapse: collapse; font-size: 13px;
-    }}
+
+    /* ── Tables ── */
+    table {{ width: 100%; border-collapse: collapse; font-size: 12px; }}
     th {{
-        background: #f8f9fa; color: #636e72; font-weight: 600;
-        padding: 10px 8px; text-align: left; border-bottom: 2px solid #dfe6e9;
-        white-space: nowrap;
+        background: #f7fafc; color: var(--muted); font-weight: 600;
+        padding: 11px 10px; text-align: left; border-bottom: 2px solid #e2e8f0;
+        white-space: nowrap; font-size: 11px; letter-spacing: 0.3px;
     }}
     td {{
-        padding: 10px 8px; border-bottom: 1px solid #f1f2f6;
-        vertical-align: top;
+        padding: 10px; border-bottom: 1px solid #f0f2f5; vertical-align: middle;
     }}
-    tr:hover {{ background: #fafbfc; }}
-    .code {{ color: #636e72; font-size: 11px; }}
-    .up {{ color: #d63031; font-weight: 700; }}
-    .down {{ color: #00b894; font-weight: 700; }}
-    .suggestion {{ font-size: 13px; max-width: 360px; }}
-    .risk-note {{ color: #636e72; font-size: 11px; }}
-    .driver {{ font-size: 12px; color: #636e72; max-width: 320px; }}
+    tr:hover td {{ background: #f7fafc; }}
+    .code {{ color: var(--muted); font-size: 10px; font-family: 'SF Mono','Consolas',monospace; }}
+    .up {{ color: var(--up); font-weight: 700; }}
+    .down {{ color: var(--down); font-weight: 700; }}
+    .suggestion {{ font-size: 12px; max-width: 340px; line-height: 1.5; }}
+    .risk-note {{ color: var(--muted); font-size: 10px; }}
+    .driver {{ font-size: 11px; color: var(--muted); max-width: 340px; }}
+
+    /* ── Summary card ── */
+    .summary-card {{
+        background: linear-gradient(135deg, #ebf8ff 0%, #f0fff4 100%);
+        border: 1px solid #bee3f8; border-radius: 10px;
+        padding: 26px 30px; line-height: 2; font-size: 14px;
+    }}
+    .summary-card .label {{
+        display: inline-block; background: var(--accent-light);
+        color: var(--accent); padding: 1px 10px; border-radius: 10px;
+        font-size: 10px; font-weight: 700; letter-spacing: 1px; margin-right: 4px;
+    }}
+
+    /* ── Disclaimer ── */
     .disclaimer {{
-        background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px;
-        padding: 16px 24px; margin-top: 24px; font-size: 13px;
-        color: #856404; text-align: center;
+        background: #fffff0; border: 1px solid #f6e05e; border-radius: 8px;
+        padding: 14px 22px; margin-top: 24px; font-size: 12px;
+        color: var(--gold); text-align: center;
     }}
-    .tag {{
-        display: inline-block; padding: 2px 8px; border-radius: 4px;
-        font-size: 11px; font-weight: 600;
-    }}
-    .tag-bull {{ background: #ffeaa7; color: #d63031; }}
-    .tag-bear {{ background: #dfe6e9; color: #00b894; }}
+
+    /* ── Footer ── */
     .footer {{
-        text-align: center; color: #b2bec3; font-size: 12px;
-        margin-top: 32px; padding: 16px;
+        text-align: center; color: var(--muted); font-size: 11px;
+        margin: 28px 0 20px; padding: 14px; opacity: 0.6;
     }}
+
+    /* ── Responsive ── */
+    @media (max-width: 1100px) {{ .toc {{ display: none; }} }}
     @media print {{
-        body {{ background: white; }}
-        .card {{ box-shadow: none; border: 1px solid #ddd; }}
+        .toc {{ display: none; }}
+        body {{ background: #fff; }}
     }}
 </style>
 </head>
 <body>
+
+<!-- 目录导航 -->
+<nav class="toc" id="toc">
+    <div class="toc-title">◆ 目 录</div>
+    <a href="#sec1"><span class="toc-dot"></span>自选股分析</a>
+    <a href="#sec2"><span class="toc-dot"></span>热门涨幅个股</a>
+    <a href="#sec3"><span class="toc-dot"></span>今日投资建议</a>
+</nav>
+
 <div class="container">
 
 <div class="header">
     <h1>📈 股票自动分析日报</h1>
-    <div class="time">生成时间: {run_time} &nbsp;|&nbsp; 数据来源: 公开行情接口（东方财富）</div>
+    <div class="time">{run_time}<span class="badge">● 实时数据</span></div>
 </div>
 
-<h2 class="section-title">一、自选股跟踪分析</h2>
-<div class="card">
-    <div style="overflow-x: auto;">
-    <table>
-        <thead>
-        <tr>
-            <th>名称 / 代码</th>
-            <th>最新价</th>
-            <th>涨跌幅</th>
-            <th>今开/最高/最低</th>
-            <th>成交额</th>
-            <th>换手率</th>
-            <th>近1/3日涨跌</th>
-            <th>均线(5/10/20)</th>
-            <th>均线状态</th>
-            <th>MACD</th>
-            <th>支撑/压力</th>
-            <th>参考建议</th>
-        </tr>
-        </thead>
-        <tbody>
-        {watch_rows}
-        </tbody>
-    </table>
+<!-- 一、自选股 -->
+<section id="sec1">
+    <div class="section-title"><span class="num">01</span> 自选股跟踪分析</div>
+    <div class="card card-glow">
+        <table>
+        <thead><tr>
+            <th>名称/代码</th><th>最新价</th><th>涨跌幅</th>
+            <th>今开/最高/最低</th><th>成交额</th><th>换手</th>
+            <th>近1/3日</th><th>MA5/10/20</th>
+            <th>均线状态</th><th>MACD</th>
+            <th>支撑/压力</th><th>参考建议</th>
+        </tr></thead>
+        <tbody>{watch_rows}</tbody>
+        </table>
     </div>
-</div>
+</section>
 
-<h2 class="section-title">二、当日热门涨幅个股</h2>
-<div class="card">
-    <div style="overflow-x: auto;">
-    <table>
-        <thead>
-        <tr>
-            <th>#</th>
-            <th>名称 / 代码</th>
-            <th>涨幅</th>
-            <th>成交额</th>
-            <th>换手率</th>
-            <th>所属板块</th>
-            <th>上涨驱动逻辑（推测）</th>
-        </tr>
-        </thead>
-        <tbody>
-        {hot_rows}
-        </tbody>
-    </table>
+<!-- 二、热门个股 -->
+<section id="sec2">
+    <div class="section-title"><span class="num">02</span> 当日热门涨幅个股</div>
+    <div class="card">
+        <table>
+        <thead><tr>
+            <th>#</th><th>名称/代码</th><th>涨幅</th>
+            <th>成交额</th><th>总市值</th><th>换手</th>
+            <th>板块</th><th>驱动逻辑</th>
+        </tr></thead>
+        <tbody>{hot_rows}</tbody>
+        </table>
+        {f'<p style="margin-top:16px;color:var(--muted);font-size:12px;">◆ 共筛选出 {len(hot_results)} 只值得关注的热门标的</p>' if hot_results else '<p style="margin-top:16px;color:var(--muted);">今日暂无符合条件的个股</p>'}
     </div>
-    {f'<p style="margin-top:16px;color:#636e72;font-size:13px;">共筛选出 {len(hot_results)} 只值得关注的热门标的</p>' if hot_results else '<p style="margin-top:16px;color:#636e72;">今日暂无符合条件的个股</p>'}
-</div>
+</section>
+
+<!-- 三、投资建议 -->
+<section id="sec3">
+    <div class="section-title"><span class="num">03</span> 今日投资建议</div>
+    <div class="summary-card">
+        <div style="font-size:14px; white-space:pre-wrap;">{daily_summary if daily_summary else '暂无'}</div>
+        <p style="margin-top:16px;color:var(--muted);font-size:11px;">以上分析仅基于公开行情数据的技术面推演，不构成投资建议。</p>
+    </div>
+</section>
 
 <div class="disclaimer">
     ⚠️ <strong>免责声明：</strong>{DISCLAIMER}
 </div>
 
 <div class="footer">
-    本报告由股票自动分析程序生成 &nbsp;|&nbsp; 数据来源: akshare / 东方财富公开行情接口 &nbsp;|&nbsp; 仅供参考
+    本报告由股票自动分析程序生成 &nbsp;|&nbsp; 数据来源: 腾讯/新浪公开行情接口 &nbsp;|&nbsp; 仅供参考
 </div>
 
 </div>
+
+<script>
+// 目录高亮当前滚动位置
+const sections = document.querySelectorAll('section');
+const links = document.querySelectorAll('.toc a');
+window.addEventListener('scroll', () => {{
+    let current = '';
+    sections.forEach(s => {{ if(window.scrollY >= s.offsetTop - 120) current = s.id; }});
+    links.forEach(a => {{
+        a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    }});
+}});
+</script>
 </body>
 </html>"""
 

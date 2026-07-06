@@ -34,6 +34,11 @@ from data_fetcher import (
     get_all_watch_stocks_data,
     fetch_market_top_gainers,
     fetch_sector_stocks,
+    fetch_market_indices,
+    fetch_market_breadth,
+    fetch_finance_news,
+    _fetch_tencent_quotes,
+    _HOT_STOCK_POOL,
     generate_demo_quote,
     generate_demo_history,
     generate_demo_market_data,
@@ -42,6 +47,7 @@ from data_fetcher import (
 from analyzer import (
     analyze_watch_stock,
     analyze_hot_stocks,
+    generate_full_summary,
 )
 from report_generator import (
     print_console_report,
@@ -139,16 +145,23 @@ def main(demo_mode: bool = False):
     hot_results = analyze_hot_stocks(market_df, sector_data)
     logger.info("  共筛选出 %d 只热门关注标的", len(hot_results))
 
+    # 3d. 大盘指数 + 市场全貌 + 新闻 + 投资建议
+    market_indices = {} if demo_mode else fetch_market_indices()
+    market_breadth = {} if demo_mode else fetch_market_breadth()
+    news_data = {} if demo_mode else fetch_finance_news()
+    quotes_pool = {} if demo_mode else _fetch_tencent_quotes(_HOT_STOCK_POOL)
+    daily_summary = generate_full_summary(watch_results, hot_results, market_indices, market_breadth, news_data, quotes_pool)
+
     # ================================================
     # STEP 4: 生成报告
     # ================================================
     logger.info("[Step 4/5] 生成分析报告...")
 
     # 4a. 控制台输出
-    print_console_report(watch_results, hot_results, run_time)
+    print_console_report(watch_results, hot_results, run_time, daily_summary)
 
     # 4b. HTML 报告
-    html_path = generate_html_report(watch_results, hot_results, run_time)
+    html_path = generate_html_report(watch_results, hot_results, run_time, daily_summary)
 
     # ================================================
     # STEP 5: CSV 存档

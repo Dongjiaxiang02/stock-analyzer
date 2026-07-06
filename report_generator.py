@@ -204,8 +204,8 @@ def _build_html(watch_results: dict, hot_results: list, run_time: str,
             <td class="right">{quote.get('turnover', 'N/A')}%</td>
             <td class="right">{ret_1d_str}/{ret_3d_str}</td>
             <td class="right">MA5:{ma.get('ma5', 'N/A')}<br>MA10:{ma.get('ma10', 'N/A')}<br>MA20:{ma.get('ma20', 'N/A')}</td>
-            <td class="{al_class}">{al}<br>{ma.get('ma5_cross_ma10', '')} {ma.get('ma5_cross_ma20', '')}</td>
-            <td class="{md_class}">DIF:{macd.get('dif', 'N/A')}<br>{macd.get('dif_position', '')}<br>{md_dir}{macd_signal}</td>
+            <td><span class="pill-tag {al_class}">{al}</span><br>{ma.get('ma5_cross_ma10', '')} {ma.get('ma5_cross_ma20', '')}</td>
+            <td><span class="pill-tag {md_class}">{md_dir}</span><br>DIF:{macd.get('dif', 'N/A')}<br>{macd.get('dif_position', '')}{macd_signal}</td>
             <td class="right bold">支撑 ¥{sr.get('support', 'N/A')}<br>压力 ¥{sr.get('resistance', 'N/A')}</td>
             <td class="left"><div class="sug-box {sug_class}">{suggestion}<br><span class="risk-note">{risk}</span></div></td>
         </tr>"""
@@ -220,10 +220,10 @@ def _build_html(watch_results: dict, hot_results: list, run_time: str,
         mc = stock.get("market_cap", 0)
         mc_str = f"{mc:.0f}亿" if mc > 0 else "—"
         pe = stock.get("pe", 0)
-        pe_warn = "pe-warn" if pe > 200 else ""
-        pe_str = f"<span class='{pe_warn}'>PE(TTM){pe:.0f}</span>" if pe > 0 else "—"
+        pe_warn = "pill-pe" if pe > 200 else ""
+        pe_str = f"<span class='{pe_warn}'>PE(TTM){pe:.0f}</span>" if pe > 0 else "<span style='color:var(--t3)'>—</span>"
         turnover = stock.get('turnover', 0)
-        to_warn = " <span class='to-warn'>⚠高换手{:.0f}%</span>".format(turnover) if turnover > 20 else ""
+        to_warn = " <span class='pill-warn'>高换手{:.0f}%</span>".format(turnover) if turnover > 20 else ""
         hot_rows += f"""
         <tr>
             <td>{i}</td>
@@ -246,219 +246,205 @@ def _build_html(watch_results: dict, hot_results: list, run_time: str,
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>{today}-股票分析报告</title>
 <style>
     :root {{
-        --bg: #f5f6f8; --card: #ffffff; --border: #e2e8f0;
-        --text: #2d3748; --muted: #718096;
-        --blue: #2b6cb0; --blue-light: #ebf4ff; --blue-dark: #1a365d;
-        --green: #38a169; --green-light: #f0fff4;
-        --red: #e53e3e; --red-light: #fff5f5;
-        --orange: #dd6b20; --orange-light: #fffaf0;
-        --yellow-warn: #fefcbf;
-        --gray: #4a5568; --gray-light: #f7fafc;
+        --bg1:#f4f7fb; --bg2:#f8fafc; --card:#fff;
+        --bd:#e1e6ed; --t1:#172b4d; --t2:#344054; --t3:#667085;
+        --blue1:#1e57b7; --blue2:#2b74d9;
+        --blue-light:#eef3fc; --blue-bg:#f1f5fb;
+        --red:#d63031; --green:#099268; --orange:#e07b39;
+        --red-bg:#fef2f2; --green-bg:#ecfdf5; --orange-bg:#fff7ed;
+        --purple-tag:#f3e8ff; --purple-text:#7c3aed;
+        --hover:#e8eff9; --shadow:0 2px 12px rgba(0,0,0,0.05);
+        --shadow-md:0 4px 20px rgba(0,0,0,0.07);
+        --radius:12px; --trans:all 0.25s ease;
     }}
-    * {{ margin:0; padding:0; box-sizing:border-box; }}
-    html {{ scroll-behavior:smooth; }}
-    body {{
-        font-family:"Microsoft YaHei","PingFang SC",-apple-system,sans-serif;
-        background:var(--bg); color:var(--text); line-height:1.6;
-        font-size:14px; padding:0 5%;
+    *{{margin:0;padding:0;box-sizing:border-box;}}
+    html{{scroll-behavior:smooth;}}
+    body{{
+        font-family:"Inter","Microsoft YaHei","PingFang SC",-apple-system,sans-serif;
+        background:linear-gradient(180deg,var(--bg1) 0%,var(--bg2) 100%);
+        color:var(--t2);font-size:14px;line-height:1.65;
+        padding:0 clamp(8px,4vw,24px);min-height:100vh;
     }}
-    @media (max-width:800px) {{ body {{ padding:0 8px; }} }}
-    .container {{ max-width:1500px; margin:0 auto; }}
+    .container{{max-width:1500px;margin:0 auto;}}
 
-    /* ═══ 导航 ═══ */
-    .toc {{
-        position:sticky; top:0; z-index:200;
-        background:rgba(255,255,255,0.97); border-bottom:2px solid var(--blue);
-        padding:10px 5%; margin:0 -5% 20px -5%;
-        display:flex; align-items:center; gap:28px; flex-wrap:wrap;
-        backdrop-filter:blur(10px); box-shadow:0 2px 8px rgba(0,0,0,0.06);
+    /* NAV */
+    .nav{{
+        position:sticky;top:0;z-index:200;
+        background:linear-gradient(90deg,var(--blue1) 0%,var(--blue2) 100%);
+        margin:0 calc(-1*clamp(8px,4vw,24px));padding:0 clamp(8px,4vw,24px);
+        display:flex;align-items:center;gap:32px;height:48px;
+        box-shadow:0 2px 16px rgba(30,87,183,0.2);
     }}
-    .toc-logo {{ font-weight:800; font-size:15px; color:var(--blue-dark); white-space:nowrap; }}
-    .toc a {{
-        color:var(--muted); text-decoration:none; font-size:13px;
-        padding:4px 12px; border-radius:14px; transition:all 0.2s; white-space:nowrap;
+    .nav-brand{{font-weight:700;font-size:15px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.15);white-space:nowrap;}}
+    .nav a{{
+        color:rgba(255,255,255,0.82);text-decoration:none;font-size:13px;font-weight:500;
+        padding:4px 0;position:relative;transition:var(--trans);white-space:nowrap;
     }}
-    .toc a:hover, .toc a.active {{ background:var(--blue); color:#fff; }}
+    .nav a::after{{
+        content:'';position:absolute;bottom:-3px;left:0;width:0;height:2px;
+        background:rgba(255,255,255,0.9);border-radius:1px;transition:var(--trans);
+    }}
+    .nav a:hover,.nav a.active{{color:#fff;}}
+    .nav a:hover::after,.nav a.active::after{{width:100%;}}
 
-    /* ═══ Header ═══ */
-    .header {{
-        background:linear-gradient(135deg, #1a365d 0%, #2b6cb0 50%, #3182ce 100%);
-        border-radius:14px; padding:28px 40px; margin:0 0 24px 0;
-        color:#fff; position:relative; overflow:hidden;
+    /* HEADER */
+    .header{{
+        background:linear-gradient(135deg,#fff 0%,#f8fafc 100%);
+        border:1px solid var(--bd);border-radius:14px;
+        padding:28px 36px;margin:20px 0 24px;
+        box-shadow:var(--shadow);position:relative;overflow:hidden;
     }}
-    .header h1 {{ font-size:24px; font-weight:800; position:relative; }}
-    .header .time {{ opacity:0.7; font-size:13px; margin-top:4px; position:relative; }}
-
-    /* ═══ 分区标题 ═══ */
-    .sec-h1 {{
-        font-size:17px; font-weight:700; color:#fff; background:var(--blue-dark);
-        padding:8px 18px; border-radius:6px; margin:28px 0 12px;
-        display:inline-block;
+    .header::after{{
+        content:'';position:absolute;bottom:0;left:16px;right:16px;
+        height:1px;background:linear-gradient(90deg,transparent,rgba(49,116,209,0.1),transparent);
     }}
-    .sec-h2 {{
-        font-size:15px; font-weight:700; color:var(--blue); background:var(--blue-light);
-        padding:6px 14px; border-radius:4px; margin:16px 0 8px;
-    }}
-    .sec-card {{
-        background:var(--card); border:1px solid var(--border);
-        border-radius:10px; padding:20px 24px; margin-bottom:16px;
-        box-shadow:0 2px 8px rgba(0,0,0,0.04);
-    }}
-    .sec-card.blue {{ border-left:4px solid var(--blue); }}
-    .sec-card.green {{ border-left:4px solid var(--green); }}
-    .sec-card.orange {{ border-left:4px solid var(--orange); }}
-    .sec-card.gray {{ border-left:4px solid var(--gray); }}
-
-    /* ═══ 表格 ═══ */
-    .tbl-wrap {{ overflow-x:auto; }}
-    table {{ width:100%; border-collapse:collapse; font-size:12px; }}
-    th {{
-        background:var(--blue-dark); color:#fff; font-weight:600;
-        padding:10px 8px; text-align:center; border-right:1px solid rgba(255,255,255,0.1);
-        white-space:nowrap; font-size:11px; position:sticky; top:0;
-    }}
-    td {{
-        padding:8px; border-bottom:1px solid #f0f2f5; text-align:center;
-    }}
-    tr:nth-child(even) td {{ background:#fafbfc; }}
-    tr:nth-child(odd) td {{ background:#fff; }}
-    tr:hover td {{ background:#ebf4ff !important; }}
-    td.left {{ text-align:left; }}
-    td.right {{ text-align:right; }}
-
-    /* ═══ 颜色标注 ═══ */
-    .up {{ color:var(--red); font-weight:700; }}
-    .down {{ color:var(--green); font-weight:700; }}
-    .bold {{ font-weight:700; }}
-    .code {{ color:var(--muted); font-size:10px; font-family:Consolas,monospace; }}
-    .pe-warn {{ background:var(--yellow-warn); color:#975a16; padding:1px 6px; border-radius:3px; font-weight:700; font-size:11px; }}
-    .to-warn {{ color:var(--red); font-weight:700; font-size:11px; }}
-    .signal-bull {{ color:var(--blue); font-weight:700; }}
-    .signal-bear {{ color:var(--red); font-weight:700; }}
-    .signal-neut {{ color:var(--orange); font-weight:700; }}
-
-    /* ═══ 消息面 ═══ */
-    .news-bull {{
-        background:var(--green-light); border-left:4px solid var(--green);
-        padding:10px 16px; margin:8px 0; border-radius:0 6px 6px 0; font-size:12px;
-    }}
-    .news-bear {{
-        background:var(--red-light); border-left:4px solid var(--red);
-        padding:10px 16px; margin:8px 0; border-radius:0 6px 6px 0; font-size:12px;
-    }}
-    .news-other {{
-        background:var(--blue-light); border-left:4px solid var(--blue);
-        padding:10px 16px; margin:8px 0; border-radius:0 6px 6px 0; font-size:12px;
+    .header h1{{font-size:24px;font-weight:800;color:var(--t1);letter-spacing:-0.3px;}}
+    .header .time{{font-size:12px;color:var(--t3);margin-top:6px;}}
+    .header .badge{{
+        display:inline-block;background:var(--blue-light);color:var(--blue1);
+        font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;margin-left:10px;vertical-align:middle;
     }}
 
-    /* ═══ 预警 ═══ */
-    .alert {{
-        background:var(--red-light); border:1px solid #fc8181;
-        border-left:4px solid var(--red); border-radius:6px;
-        padding:10px 16px; margin:8px 0; font-size:12px;
-    }}
-    .warn-box {{
-        background:var(--orange-light); border:1px solid #f6ad55;
-        border-left:4px solid var(--orange); border-radius:6px;
-        padding:8px 14px; margin:6px 0; font-size:12px;
+    /* SECTION TITLES */
+    .sec-h1{{
+        font-size:16px;font-weight:700;color:var(--t1);margin:28px 0 12px;
+        padding-left:14px;border-left:4px solid var(--blue2);line-height:1.3;
     }}
 
-    /* ═══ 建议色块 ═══ */
-    .sug-box {{
-        display:inline-block; background:var(--blue-light); border:1px solid #bee3f8;
-        border-radius:6px; padding:8px 14px; margin:4px 0; font-size:12px;
-        max-width:360px;
-    }}
-    .sug-bull {{ border-color:#38a169; background:var(--green-light); }}
-    .sug-bear {{ border-color:#e53e3e; background:var(--red-light); }}
-    .sug-neut {{ border-color:#dd6b20; background:var(--orange-light); }}
-
-    /* ═══ 仓位数字 ═══ */
-    .pos-num {{ font-size:20px; font-weight:800; color:var(--blue); }}
-
-    /* ═══ 免责 ═══ */
-    .disclaimer {{
-        background:#fffff0; border:1px solid #f6e05e; border-radius:8px;
-        padding:14px 22px; margin-top:24px; font-size:12px; color:#b7791f; text-align:center;
-    }}
-    .footer {{
-        text-align:center; color:var(--muted); font-size:11px; margin:24px 0; opacity:0.5;
+    /* CARDS */
+    .card{{
+        background:var(--card);border:1px solid var(--bd);border-radius:var(--radius);
+        padding:20px;margin-bottom:16px;box-shadow:var(--shadow);transition:var(--trans);
     }}
 
-    @media (max-width:1100px) {{ .toc {{ gap:12px; font-size:11px; }} }}
-    @media print {{
-        body {{ background:#fff; padding:0; }} .toc {{ display:none; }}
+    /* TABLE */
+    .tbl-wrap{{overflow-x:auto;border-radius:var(--radius);box-shadow:var(--shadow);background:var(--card);padding:8px;}}
+    table{{width:100%;border-collapse:collapse;font-size:12px;}}
+    th{{
+        background:linear-gradient(180deg,#225bb0 0%,#3174d1 100%);
+        color:#fff;font-weight:600;padding:12px 10px;text-align:center;
+        border-right:1px solid rgba(255,255,255,0.08);white-space:nowrap;font-size:11px;
     }}
+    td{{padding:11px 10px;border-bottom:1px solid #f1f3f6;text-align:center;}}
+    tr:nth-child(odd) td{{background:#fff;}}
+    tr:nth-child(even) td{{background:var(--blue-bg);}}
+    tr:hover td{{background:var(--hover)!important;transition:var(--trans);}}
+    td.left{{text-align:left;}} td.right{{text-align:right;}}
+    .code{{color:var(--t3);font-size:10px;font-family:"SF Mono",Consolas,monospace;}}
+    .bold{{font-weight:600;}}
+
+    /* PILL TAGS */
+    .pill-up{{display:inline-block;color:var(--red);font-weight:600;font-size:12px;}}
+    .pill-down{{display:inline-block;color:var(--green);font-weight:600;font-size:12px;}}
+    .pill-warn{{
+        display:inline-block;background:var(--orange-bg);color:var(--orange);
+        padding:2px 10px;border-radius:12px;font-size:10px;font-weight:600;
+    }}
+    .pill-pe{{
+        display:inline-block;background:#fef9c3;color:#a16207;
+        padding:2px 10px;border-radius:12px;font-size:10px;font-weight:600;
+    }}
+    .pill-tag{{
+        display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;margin:1px 2px;
+    }}
+    .tag-bull{{background:var(--blue-light);color:var(--blue1);}}
+    .tag-bear{{background:var(--red-bg);color:#b91c1c;}}
+    .tag-neut{{background:var(--purple-tag);color:var(--purple-text);}}
+
+    /* SUGGESTION BOX */
+    .sug-box{{
+        padding:8px 12px;border-radius:10px;font-size:11px;line-height:1.5;max-width:340px;border:1px solid;transition:var(--trans);
+    }}
+    .sug-bull{{background:var(--green-bg);border-color:#a7f3d0;color:#065f46;}}
+    .sug-bear{{background:var(--red-bg);border-color:#fecaca;color:#991b1b;}}
+    .sug-neut{{background:#fffbeb;border-color:#fde68a;color:#92400e;}}
+
+    /* NEWS */
+    .news-block{{border-radius:10px;padding:12px 16px;margin:8px 0;font-size:12px;line-height:1.7;}}
+    .news-bull{{background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border:1px solid #bbf7d0;}}
+    .news-bear{{background:linear-gradient(135deg,#fff5f5,#fef2f2);border:1px solid #fecaca;}}
+    .news-other{{background:var(--blue-light);border:1px solid #bfdbfe;}}
+
+    /* HIGHLIGHTS */
+    .hl-num{{font-size:18px;font-weight:800;color:var(--blue1);}}
+    .hl-price{{font-weight:700;color:var(--t1);}}
+    .hl-warn{{color:var(--red);font-weight:600;}}
+
+    /* FOOTER */
+    .disclaimer{{
+        background:#fefce8;border:1px solid #fde68a;border-radius:10px;
+        padding:14px 22px;margin-top:24px;font-size:11px;color:#a16207;text-align:center;
+    }}
+    .footer{{text-align:center;color:var(--t3);font-size:10px;margin:20px 0 16px;}}
+
+    @media(max-width:900px){{
+        .nav{{gap:16px;overflow-x:auto;}}.nav a{{font-size:11px;}}
+        .header{{padding:18px 20px;}}.header h1{{font-size:20px;}}
+        table{{font-size:11px;}}th,td{{padding:8px 6px;}}
+    }}
+    @media print{{body{{background:#fff;}}.nav{{display:none;}}}}
 </style>
 </head>
 <body>
 
-<nav class="toc" id="toc">
-    <span class="toc-logo">📈 股票日报</span>
+<nav class="nav">
+    <span class="nav-brand">📈 股票日报</span>
     <a href="#sec1">自选股分析</a>
-    <a href="#sec2">热门涨幅个股</a>
+    <a href="#sec2">热门涨幅</a>
     <a href="#sec3">投资建议</a>
-    <a href="#sec4">半导体深度</a>
 </nav>
 
 <div class="container">
 
 <div class="header">
     <h1>📈 股票自动分析日报</h1>
-    <div class="time">{run_time} &nbsp;|&nbsp; 数据源: 腾讯/新浪公开接口 &nbsp;|&nbsp; 仅供参考</div>
+    <div class="time">{run_time} &nbsp;|&nbsp; 数据源: 腾讯/新浪公开接口 &nbsp;|&nbsp; 仅供参考<span class="badge">实时数据</span></div>
 </div>
 
 <section id="sec1">
-    <div class="sec-h1">01 · 自选股跟踪分析</div>
-    <div class="sec-card gray">
-        <div class="tbl-wrap"><table>
-        <thead><tr>
-            <th>名称/代码</th><th>最新价</th><th>涨跌幅</th>
-            <th>今开/最高/最低</th><th>成交额</th><th>换手</th>
-            <th>近1/3日</th><th>MA5/10/20</th><th>均线状态</th><th>MACD</th><th>支撑/压力</th><th>参考建议</th>
-        </tr></thead>
-        <tbody>{watch_rows}</tbody>
-        </table></div>
-    </div>
+    <div class="sec-h1">自选股跟踪分析</div>
+    <div class="tbl-wrap"><table>
+    <thead><tr>
+        <th>名称/代码</th><th>最新价</th><th>涨跌幅</th>
+        <th>今开/最高/最低</th><th>成交额</th><th>换手</th>
+        <th>近1/3日</th><th>MA5/10/20</th><th>均线状态</th><th>MACD</th><th>支撑/压力</th><th>参考建议</th>
+    </tr></thead>
+    <tbody>{watch_rows}</tbody>
+    </table></div>
 </section>
 
 <section id="sec2">
-    <div class="sec-h1">02 · 当日热门涨幅个股</div>
-    <div class="sec-card blue">
-        <div class="tbl-wrap"><table>
-        <thead><tr>
-            <th>#</th><th>名称/代码</th><th>涨幅</th><th>成交额</th>
-            <th>总市值</th><th>PE(TTM)</th><th>换手</th><th>板块</th><th>驱动逻辑</th>
-        </tr></thead>
-        <tbody>{hot_rows}</tbody>
-        </table></div>
-        {f'<p style="margin-top:14px;color:var(--muted);font-size:12px;">◆ 共筛选 {len(hot_results)} 只值得关注的热门标的</p>' if hot_results else '<p style="margin-top:14px;color:var(--muted);">今日暂无符合条件的个股</p>'}
-    </div>
+    <div class="sec-h1">当日热门涨幅个股</div>
+    <div class="tbl-wrap"><table>
+    <thead><tr>
+        <th>#</th><th>名称/代码</th><th>涨幅</th><th>成交额</th>
+        <th>总市值</th><th>PE(TTM)</th><th>换手</th><th>板块</th><th>驱动逻辑</th>
+    </tr></thead>
+    <tbody>{hot_rows}</tbody>
+    </table></div>
+    {f'<p style="margin-top:12px;color:var(--t3);font-size:12px;">◆ 共筛选 {len(hot_results)} 只值得关注的热门标的</p>' if hot_results else '<p style="margin-top:12px;color:var(--t3);">今日暂无符合条件的个股</p>'}
 </section>
 
 <section id="sec3">
-    <div class="sec-h1">03 · 今日投资建议</div>
-    <div class="sec-card blue" style="font-size:14px;line-height:2.2;white-space:pre-wrap;padding:24px 30px;">{summary_html}</div>
+    <div class="sec-h1">今日投资建议</div>
+    <div class="card" style="font-size:14px;line-height:2;white-space:pre-wrap;padding:24px 30px;border-left:3px solid var(--blue2);">{summary_html}</div>
 </section>
 
-<section id="sec4" style="display:none;"></section>
-
 <div class="disclaimer">⚠️ <strong>免责声明：</strong>{DISCLAIMER}</div>
-<div class="footer">本报告由股票自动分析程序生成 &nbsp;|&nbsp; 数据来源: 腾讯/新浪公开行情接口</div>
+<div class="footer">本报告由股票自动分析程序生成 &nbsp;|&nbsp; 数据来源: 腾讯/新浪公开行情接口 &nbsp;|&nbsp; 仅供参考</div>
 
 </div>
-
 <script>
-document.querySelectorAll('.toc a').forEach(a=>{{
-    a.addEventListener('click',e=>{{e.preventDefault();const t=document.querySelector(a.getAttribute('href'));if(t)window.scrollTo({{top:t.offsetTop-60,behavior:'smooth'}});}});
+document.querySelectorAll('.nav a').forEach(a=>{{
+    a.addEventListener('click',e=>{{e.preventDefault();const t=document.querySelector(a.getAttribute('href'));if(t)window.scrollTo({{top:t.offsetTop-56,behavior:'smooth'}});}});
 }});
 window.addEventListener('scroll',()=>{{
     let c='';document.querySelectorAll('section').forEach(s=>{{if(window.scrollY>=s.offsetTop-120)c=s.id;}});
-    document.querySelectorAll('.toc a').forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+c));
+    document.querySelectorAll('.nav a').forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+c));
 }});
 </script>
 </body>

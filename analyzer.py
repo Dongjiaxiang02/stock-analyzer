@@ -168,7 +168,7 @@ def generate_full_summary(watch_results, hot_results, indices, breadth, news, qu
 
     # 支撑压力（从K线数据或价格±2%估算）
     if indices:
-        sh = indices.get("上证", {}); cy = indices.get("创业板", {})
+        sh = indices.get("sh000001", {}); cy = indices.get("sz399006", {})
         sh_p = sh.get("price", 0); cy_p = cy.get("price", 0)
         sh_low = sh.get("low", sh_p * 0.98) if sh_p > 0 else 0
         sh_high = sh.get("high", sh_p * 1.02) if sh_p > 0 else 0
@@ -411,7 +411,7 @@ def _risk(watch_results, hot_results, all_down, quotes):
 def _tomorrow(indices, hot_results, watch_results, all_down):
     lines = ["【七、明日行情推演】"]
     if indices:
-        sh = indices.get("上证", {}); cy = indices.get("创业板", {})
+        sh = indices.get("sh000001", {}); cy = indices.get("sz399006", {})
         sh_p = sh.get("price", 0); cy_p = cy.get("price", 0)
         lines.append(f"关键点位：上证支撑{(sh.get('low') or sh_p*0.98):.0f}/压力{(sh.get('high') or sh_p*1.02):.0f} | "
                     f"创业板支撑{(cy.get('low') or cy_p*0.98):.0f}/压力{(cy.get('high') or cy_p*1.02):.0f}")

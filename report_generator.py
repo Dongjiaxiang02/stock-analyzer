@@ -185,20 +185,29 @@ def _build_html(watch_results: dict, hot_results: list, run_time: str,
         suggestion = analysis.get("suggestion", "—")
         risk = analysis.get("risk_note", "—")
 
+        # 均线状态颜色
+        al = ma.get('alignment','')
+        al_class = 'signal-bull' if '多头' in al else ('signal-bear' if '空头' in al else 'signal-neut')
+        # MACD方向颜色
+        md_dir = macd.get('dif_direction','')
+        md_class = 'signal-bull' if '向上' in md_dir else ('signal-bear' if '向下' in md_dir else '')
+        # 建议色块
+        sug = analysis.get('suggestion','')
+        sug_class = 'sug-bull' if '偏多' in sug or '🟢' in sug else ('sug-bear' if '偏空' in sug or '🔴' in sug else 'sug-neut')
         watch_rows += f"""
         <tr>
-            <td><strong>{name}</strong><br><span class="code">{data.get('code', '')}</span></td>
-            <td>¥{quote.get('price', 'N/A')}</td>
+            <td class="left"><strong>{name}</strong><br><span class="code">{data.get('code', '')}</span></td>
+            <td class="right bold">¥{quote.get('price', 'N/A')}</td>
             <td class="{pct_class}">{pct_str}</td>
-            <td>{quote.get('open', 'N/A')} / {quote.get('high', 'N/A')} / {quote.get('low', 'N/A')}</td>
-            <td>{_fmt_amount(quote.get('amount', 0))}</td>
-            <td>{quote.get('turnover', 'N/A')}%</td>
-            <td>{ret_1d_str} / {ret_3d_str}</td>
-            <td>MA5:{ma.get('ma5', 'N/A')}<br>MA10:{ma.get('ma10', 'N/A')}<br>MA20:{ma.get('ma20', 'N/A')}</td>
-            <td>{ma.get('alignment', 'N/A')}<br>{ma.get('ma5_cross_ma10', '')} {ma.get('ma5_cross_ma20', '')}</td>
-            <td>DIF:{macd.get('dif', 'N/A')}<br>{macd.get('dif_position', '')}<br>{macd.get('dif_direction', '')}{macd_signal}</td>
-            <td>支撑:¥{sr.get('support', 'N/A')}<br>压力:¥{sr.get('resistance', 'N/A')}</td>
-            <td class="suggestion">{suggestion}<br><span class="risk-note">{risk}</span><br><span style="font-size:9px;color:#3182ce;">{analysis.get('fundamental','')[:60]}...</span></td>
+            <td class="right">{quote.get('open', 'N/A')}/{quote.get('high', 'N/A')}/{quote.get('low', 'N/A')}</td>
+            <td class="right">{_fmt_amount(quote.get('amount', 0))}</td>
+            <td class="right">{quote.get('turnover', 'N/A')}%</td>
+            <td class="right">{ret_1d_str}/{ret_3d_str}</td>
+            <td class="right">MA5:{ma.get('ma5', 'N/A')}<br>MA10:{ma.get('ma10', 'N/A')}<br>MA20:{ma.get('ma20', 'N/A')}</td>
+            <td class="{al_class}">{al}<br>{ma.get('ma5_cross_ma10', '')} {ma.get('ma5_cross_ma20', '')}</td>
+            <td class="{md_class}">DIF:{macd.get('dif', 'N/A')}<br>{macd.get('dif_position', '')}<br>{md_dir}{macd_signal}</td>
+            <td class="right bold">支撑 ¥{sr.get('support', 'N/A')}<br>压力 ¥{sr.get('resistance', 'N/A')}</td>
+            <td class="left"><div class="sug-box {sug_class}">{suggestion}<br><span class="risk-note">{risk}</span></div></td>
         </tr>"""
 
     # --- 热门个股表格行 ---
@@ -218,18 +227,21 @@ def _build_html(watch_results: dict, hot_results: list, run_time: str,
         hot_rows += f"""
         <tr>
             <td>{i}</td>
-            <td><strong>{stock['name']}</strong><br><span class="code">{stock['code']}</span></td>
+            <td class="left"><strong>{stock['name']}</strong><br><span class="code">{stock['code']}</span></td>
             <td class="{pct_class}">{pct_str}</td>
-            <td>{_fmt_amount(stock.get('amount', 0))}</td>
-            <td>{mc_str}</td>
+            <td class="right">{_fmt_amount(stock.get('amount', 0))}</td>
+            <td class="right">{mc_str}</td>
             <td>{pe_str}</td>
-            <td>{stock.get('turnover', 'N/A')}%{to_warn}</td>
+            <td class="right">{stock.get('turnover', 'N/A')}%{to_warn}</td>
             <td>{stock.get('sector', '')}</td>
-            <td class="driver">{stock.get('driver_note', '')}</td>
+            <td class="left driver">{stock.get('driver_note', '')}</td>
         </tr>"""
 
-    # --- 完整 HTML（科技感深色主题 + 目录导航）---
+    # --- 完整 HTML（三色分区+卡片布局+表格可视化+目录跳转）---
     today = datetime.now().strftime('%Y%m%d')
+    # 处理 summary 中的 HTML 标记
+    summary_html = daily_summary if daily_summary else '暂无'
+
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -238,219 +250,215 @@ def _build_html(watch_results: dict, hot_results: list, run_time: str,
 <title>{today}-股票分析报告</title>
 <style>
     :root {{
-        --bg: #f0f4f8; --surface: #f8fafc; --card: #ffffff;
-        --border: #e2e8f0; --text: #1a202c; --muted: #718096;
-        --accent: #3182ce; --accent-light: #ebf4ff;
-        --up: #e53e3e; --down: #38a169;
-        --gold: #b7791f; --purple: #805ad5;
+        --bg: #f5f6f8; --card: #ffffff; --border: #e2e8f0;
+        --text: #2d3748; --muted: #718096;
+        --blue: #2b6cb0; --blue-light: #ebf4ff; --blue-dark: #1a365d;
+        --green: #38a169; --green-light: #f0fff4;
+        --red: #e53e3e; --red-light: #fff5f5;
+        --orange: #dd6b20; --orange-light: #fffaf0;
+        --yellow-warn: #fefcbf;
+        --gray: #4a5568; --gray-light: #f7fafc;
     }}
-    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-    html {{ scroll-behavior: smooth; }}
+    * {{ margin:0; padding:0; box-sizing:border-box; }}
+    html {{ scroll-behavior:smooth; }}
     body {{
-        font-family: -apple-system, BlinkMacSystemFont, "Microsoft YaHei", "Segoe UI", sans-serif;
-        background: var(--bg); color: var(--text); line-height: 1.6;
+        font-family:"Microsoft YaHei","PingFang SC",-apple-system,sans-serif;
+        background:var(--bg); color:var(--text); line-height:1.6;
+        font-size:14px; padding:0 5%;
     }}
-    .container {{ max-width: 1400px; margin: 0 auto; padding: 0 24px; }}
+    @media (max-width:800px) {{ body {{ padding:0 8px; }} }}
+    .container {{ max-width:1500px; margin:0 auto; }}
 
-    /* ── 顶部横向目录 ── */
+    /* ═══ 导航 ═══ */
     .toc {{
-        position: sticky; top: 0; z-index: 100;
-        background: rgba(255,255,255,0.95); border-bottom: 1px solid var(--border);
-        padding: 10px 28px; margin-bottom: 20px;
-        backdrop-filter: blur(10px);
-        display: flex; align-items: center; gap: 24px;
+        position:sticky; top:0; z-index:200;
+        background:rgba(255,255,255,0.97); border-bottom:2px solid var(--blue);
+        padding:10px 5%; margin:0 -5% 20px -5%;
+        display:flex; align-items:center; gap:28px; flex-wrap:wrap;
+        backdrop-filter:blur(10px); box-shadow:0 2px 8px rgba(0,0,0,0.06);
     }}
-    .toc-title {{
-        font-size: 11px; letter-spacing: 1.5px; color: var(--muted);
-        font-weight: 600; white-space: nowrap;
-    }}
+    .toc-logo {{ font-weight:800; font-size:15px; color:var(--blue-dark); white-space:nowrap; }}
     .toc a {{
-        color: var(--muted); text-decoration: none;
-        font-size: 13px; transition: color 0.15s; white-space: nowrap;
+        color:var(--muted); text-decoration:none; font-size:13px;
+        padding:4px 12px; border-radius:14px; transition:all 0.2s; white-space:nowrap;
     }}
-    .toc a:hover, .toc a.active {{ color: var(--accent); font-weight: 600; }}
-    .toc-dot {{ display: none; }}
+    .toc a:hover, .toc a.active {{ background:var(--blue); color:#fff; }}
 
-    /* ── Header ── */
+    /* ═══ Header ═══ */
     .header {{
-        background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 50%, #3182ce 100%);
-        border-radius: 14px; padding: 32px 44px; margin: 24px 0 30px;
-        color: #fff; position: relative; overflow: hidden;
+        background:linear-gradient(135deg, #1a365d 0%, #2b6cb0 50%, #3182ce 100%);
+        border-radius:14px; padding:28px 40px; margin:0 0 24px 0;
+        color:#fff; position:relative; overflow:hidden;
     }}
-    .header::before {{
-        content: ''; position: absolute; top: -60%; right: -5%;
-        width: 350px; height: 350px;
-        background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%);
-        border-radius: 50%;
-    }}
-    .header h1 {{
-        font-size: 26px; font-weight: 800; letter-spacing: -0.5px;
-        color: #fff; margin-bottom: 4px; position: relative;
-    }}
-    .header .time {{ opacity: 0.75; font-size: 13px; position: relative; }}
-    .header .badge {{
-        display: inline-block; background: rgba(255,255,255,0.15);
-        border: 1px solid rgba(255,255,255,0.25); border-radius: 20px;
-        padding: 3px 12px; font-size: 11px; margin-left: 10px; vertical-align: middle;
-    }}
+    .header h1 {{ font-size:24px; font-weight:800; position:relative; }}
+    .header .time {{ opacity:0.7; font-size:13px; margin-top:4px; position:relative; }}
 
-    /* ── Sections ── */
-    section {{ scroll-margin-top: 40px; margin-bottom: 28px; }}
-    .section-title {{
-        font-size: 18px; font-weight: 700; color: #2d3748;
-        margin-bottom: 14px; padding-left: 12px;
-        border-left: 3px solid var(--accent);
-        display: flex; align-items: center; gap: 10px;
+    /* ═══ 分区标题 ═══ */
+    .sec-h1 {{
+        font-size:17px; font-weight:700; color:#fff; background:var(--blue-dark);
+        padding:8px 18px; border-radius:6px; margin:28px 0 12px;
+        display:inline-block;
     }}
-    .section-title .num {{
-        font-size: 11px; color: var(--accent); background: var(--accent-light);
-        padding: 2px 10px; border-radius: 12px; font-weight: 600;
+    .sec-h2 {{
+        font-size:15px; font-weight:700; color:var(--blue); background:var(--blue-light);
+        padding:6px 14px; border-radius:4px; margin:16px 0 8px;
     }}
+    .sec-card {{
+        background:var(--card); border:1px solid var(--border);
+        border-radius:10px; padding:20px 24px; margin-bottom:16px;
+        box-shadow:0 2px 8px rgba(0,0,0,0.04);
+    }}
+    .sec-card.blue {{ border-left:4px solid var(--blue); }}
+    .sec-card.green {{ border-left:4px solid var(--green); }}
+    .sec-card.orange {{ border-left:4px solid var(--orange); }}
+    .sec-card.gray {{ border-left:4px solid var(--gray); }}
 
-    /* ── Cards ── */
-    .card {{
-        background: var(--card); border: 1px solid var(--border);
-        border-radius: 10px; padding: 22px;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-        overflow-x: auto;
-    }}
-
-    /* ── Tables ── */
-    table {{ width: 100%; border-collapse: collapse; font-size: 12px; }}
+    /* ═══ 表格 ═══ */
+    .tbl-wrap {{ overflow-x:auto; }}
+    table {{ width:100%; border-collapse:collapse; font-size:12px; }}
     th {{
-        background: #f7fafc; color: var(--muted); font-weight: 600;
-        padding: 11px 10px; text-align: left; border-bottom: 2px solid #e2e8f0;
-        white-space: nowrap; font-size: 11px; letter-spacing: 0.3px;
+        background:var(--blue-dark); color:#fff; font-weight:600;
+        padding:10px 8px; text-align:center; border-right:1px solid rgba(255,255,255,0.1);
+        white-space:nowrap; font-size:11px; position:sticky; top:0;
     }}
     td {{
-        padding: 10px; border-bottom: 1px solid #f0f2f5; vertical-align: middle;
+        padding:8px; border-bottom:1px solid #f0f2f5; text-align:center;
     }}
-    tr:hover td {{ background: #f7fafc; }}
-    .code {{ color: var(--muted); font-size: 10px; font-family: 'SF Mono','Consolas',monospace; }}
-    .up {{ color: var(--up); font-weight: 700; }}
-    .down {{ color: var(--down); font-weight: 700; }}
-    .suggestion {{ font-size: 12px; max-width: 340px; line-height: 1.5; }}
-    .risk-note {{ color: var(--muted); font-size: 10px; }}
-    .driver {{ font-size: 11px; color: var(--muted); max-width: 340px; }}
-    .pe-warn {{ background: #fefcbf; color: #975a16; padding: 1px 6px; border-radius: 3px; font-weight: 700; }}
-    .to-warn {{ color: #e53e3e; font-weight: 700; font-size: 10px; }}
-    .alert-box {{ background: #fff5f5; border: 1px solid #fc8181; border-left: 4px solid #e53e3e;
-        border-radius: 6px; padding: 10px 16px; margin: 8px 0; font-size: 12px; }}
-    .news-bull {{ background: #f0fff4; border-left: 3px solid #38a169; padding: 8px 14px; margin: 6px 0; border-radius: 4px; }}
-    .news-bear {{ background: #fff5f5; border-left: 3px solid #e53e3e; padding: 8px 14px; margin: 6px 0; border-radius: 4px; }}
+    tr:nth-child(even) td {{ background:#fafbfc; }}
+    tr:nth-child(odd) td {{ background:#fff; }}
+    tr:hover td {{ background:#ebf4ff !important; }}
+    td.left {{ text-align:left; }}
+    td.right {{ text-align:right; }}
 
-    /* ── Summary card ── */
-    .summary-card {{
-        background: linear-gradient(135deg, #ebf8ff 0%, #f0fff4 100%);
-        border: 1px solid #bee3f8; border-radius: 10px;
-        padding: 26px 30px; line-height: 2; font-size: 14px;
+    /* ═══ 颜色标注 ═══ */
+    .up {{ color:var(--red); font-weight:700; }}
+    .down {{ color:var(--green); font-weight:700; }}
+    .bold {{ font-weight:700; }}
+    .code {{ color:var(--muted); font-size:10px; font-family:Consolas,monospace; }}
+    .pe-warn {{ background:var(--yellow-warn); color:#975a16; padding:1px 6px; border-radius:3px; font-weight:700; font-size:11px; }}
+    .to-warn {{ color:var(--red); font-weight:700; font-size:11px; }}
+    .signal-bull {{ color:var(--blue); font-weight:700; }}
+    .signal-bear {{ color:var(--red); font-weight:700; }}
+    .signal-neut {{ color:var(--orange); font-weight:700; }}
+
+    /* ═══ 消息面 ═══ */
+    .news-bull {{
+        background:var(--green-light); border-left:4px solid var(--green);
+        padding:10px 16px; margin:8px 0; border-radius:0 6px 6px 0; font-size:12px;
     }}
-    .summary-card .label {{
-        display: inline-block; background: var(--accent-light);
-        color: var(--accent); padding: 1px 10px; border-radius: 10px;
-        font-size: 10px; font-weight: 700; letter-spacing: 1px; margin-right: 4px;
+    .news-bear {{
+        background:var(--red-light); border-left:4px solid var(--red);
+        padding:10px 16px; margin:8px 0; border-radius:0 6px 6px 0; font-size:12px;
+    }}
+    .news-other {{
+        background:var(--blue-light); border-left:4px solid var(--blue);
+        padding:10px 16px; margin:8px 0; border-radius:0 6px 6px 0; font-size:12px;
     }}
 
-    /* ── Disclaimer ── */
+    /* ═══ 预警 ═══ */
+    .alert {{
+        background:var(--red-light); border:1px solid #fc8181;
+        border-left:4px solid var(--red); border-radius:6px;
+        padding:10px 16px; margin:8px 0; font-size:12px;
+    }}
+    .warn-box {{
+        background:var(--orange-light); border:1px solid #f6ad55;
+        border-left:4px solid var(--orange); border-radius:6px;
+        padding:8px 14px; margin:6px 0; font-size:12px;
+    }}
+
+    /* ═══ 建议色块 ═══ */
+    .sug-box {{
+        display:inline-block; background:var(--blue-light); border:1px solid #bee3f8;
+        border-radius:6px; padding:8px 14px; margin:4px 0; font-size:12px;
+        max-width:360px;
+    }}
+    .sug-bull {{ border-color:#38a169; background:var(--green-light); }}
+    .sug-bear {{ border-color:#e53e3e; background:var(--red-light); }}
+    .sug-neut {{ border-color:#dd6b20; background:var(--orange-light); }}
+
+    /* ═══ 仓位数字 ═══ */
+    .pos-num {{ font-size:20px; font-weight:800; color:var(--blue); }}
+
+    /* ═══ 免责 ═══ */
     .disclaimer {{
-        background: #fffff0; border: 1px solid #f6e05e; border-radius: 8px;
-        padding: 14px 22px; margin-top: 24px; font-size: 12px;
-        color: var(--gold); text-align: center;
+        background:#fffff0; border:1px solid #f6e05e; border-radius:8px;
+        padding:14px 22px; margin-top:24px; font-size:12px; color:#b7791f; text-align:center;
     }}
-
-    /* ── Footer ── */
     .footer {{
-        text-align: center; color: var(--muted); font-size: 11px;
-        margin: 28px 0 20px; padding: 14px; opacity: 0.6;
+        text-align:center; color:var(--muted); font-size:11px; margin:24px 0; opacity:0.5;
     }}
 
-    /* ── Responsive ── */
-    @media (max-width: 1100px) {{ .toc {{ display: none; }} }}
+    @media (max-width:1100px) {{ .toc {{ gap:12px; font-size:11px; }} }}
     @media print {{
-        .toc {{ display: none; }}
-        body {{ background: #fff; }}
+        body {{ background:#fff; padding:0; }} .toc {{ display:none; }}
     }}
 </style>
 </head>
 <body>
 
-<!-- 目录导航 -->
 <nav class="toc" id="toc">
-    <div class="toc-title">◆ 目 录</div>
-    <a href="#sec1"><span class="toc-dot"></span>自选股分析</a>
-    <a href="#sec2"><span class="toc-dot"></span>热门涨幅个股</a>
-    <a href="#sec3"><span class="toc-dot"></span>今日投资建议</a>
+    <span class="toc-logo">📈 股票日报</span>
+    <a href="#sec1">自选股分析</a>
+    <a href="#sec2">热门涨幅个股</a>
+    <a href="#sec3">投资建议</a>
+    <a href="#sec4">半导体深度</a>
 </nav>
 
 <div class="container">
 
 <div class="header">
     <h1>📈 股票自动分析日报</h1>
-    <div class="time">{run_time}<span class="badge">● 实时数据</span></div>
+    <div class="time">{run_time} &nbsp;|&nbsp; 数据源: 腾讯/新浪公开接口 &nbsp;|&nbsp; 仅供参考</div>
 </div>
 
-<!-- 一、自选股 -->
 <section id="sec1">
-    <div class="section-title"><span class="num">01</span> 自选股跟踪分析</div>
-    <div class="card card-glow">
-        <table>
+    <div class="sec-h1">01 · 自选股跟踪分析</div>
+    <div class="sec-card gray">
+        <div class="tbl-wrap"><table>
         <thead><tr>
             <th>名称/代码</th><th>最新价</th><th>涨跌幅</th>
             <th>今开/最高/最低</th><th>成交额</th><th>换手</th>
-            <th>近1/3日</th><th>MA5/10/20</th>
-            <th>均线状态</th><th>MACD</th>
-            <th>支撑/压力</th><th>参考建议</th>
+            <th>近1/3日</th><th>MA5/10/20</th><th>均线状态</th><th>MACD</th><th>支撑/压力</th><th>参考建议</th>
         </tr></thead>
         <tbody>{watch_rows}</tbody>
-        </table>
+        </table></div>
     </div>
 </section>
 
-<!-- 二、热门个股 -->
 <section id="sec2">
-    <div class="section-title"><span class="num">02</span> 当日热门涨幅个股</div>
-    <div class="card">
-        <table>
+    <div class="sec-h1">02 · 当日热门涨幅个股</div>
+    <div class="sec-card blue">
+        <div class="tbl-wrap"><table>
         <thead><tr>
-            <th>#</th><th>名称/代码</th><th>涨幅</th>
-            <th>成交额</th><th>总市值</th><th>换手</th>
-            <th>板块</th><th>驱动逻辑</th>
+            <th>#</th><th>名称/代码</th><th>涨幅</th><th>成交额</th>
+            <th>总市值</th><th>PE(TTM)</th><th>换手</th><th>板块</th><th>驱动逻辑</th>
         </tr></thead>
         <tbody>{hot_rows}</tbody>
-        </table>
-        {f'<p style="margin-top:16px;color:var(--muted);font-size:12px;">◆ 共筛选出 {len(hot_results)} 只值得关注的热门标的</p>' if hot_results else '<p style="margin-top:16px;color:var(--muted);">今日暂无符合条件的个股</p>'}
+        </table></div>
+        {f'<p style="margin-top:14px;color:var(--muted);font-size:12px;">◆ 共筛选 {len(hot_results)} 只值得关注的热门标的</p>' if hot_results else '<p style="margin-top:14px;color:var(--muted);">今日暂无符合条件的个股</p>'}
     </div>
 </section>
 
-<!-- 三、投资建议 -->
 <section id="sec3">
-    <div class="section-title"><span class="num">03</span> 今日投资建议</div>
-    <div class="summary-card">
-        <div style="font-size:14px; white-space:pre-wrap;">{daily_summary if daily_summary else '暂无'}</div>
-        <p style="margin-top:16px;color:var(--muted);font-size:11px;">以上分析仅基于公开行情数据的技术面推演，不构成投资建议。</p>
-    </div>
+    <div class="sec-h1">03 · 今日投资建议</div>
+    <div class="sec-card blue" style="font-size:14px;line-height:2.2;white-space:pre-wrap;padding:24px 30px;">{summary_html}</div>
 </section>
 
-<div class="disclaimer">
-    ⚠️ <strong>免责声明：</strong>{DISCLAIMER}
-</div>
+<section id="sec4" style="display:none;"></section>
 
-<div class="footer">
-    本报告由股票自动分析程序生成 &nbsp;|&nbsp; 数据来源: 腾讯/新浪公开行情接口 &nbsp;|&nbsp; 仅供参考
-</div>
+<div class="disclaimer">⚠️ <strong>免责声明：</strong>{DISCLAIMER}</div>
+<div class="footer">本报告由股票自动分析程序生成 &nbsp;|&nbsp; 数据来源: 腾讯/新浪公开行情接口</div>
 
 </div>
 
 <script>
-// 目录高亮当前滚动位置
-const sections = document.querySelectorAll('section');
-const links = document.querySelectorAll('.toc a');
-window.addEventListener('scroll', () => {{
-    let current = '';
-    sections.forEach(s => {{ if(window.scrollY >= s.offsetTop - 120) current = s.id; }});
-    links.forEach(a => {{
-        a.classList.toggle('active', a.getAttribute('href') === '#' + current);
-    }});
+document.querySelectorAll('.toc a').forEach(a=>{{
+    a.addEventListener('click',e=>{{e.preventDefault();const t=document.querySelector(a.getAttribute('href'));if(t)window.scrollTo({{top:t.offsetTop-60,behavior:'smooth'}});}});
+}});
+window.addEventListener('scroll',()=>{{
+    let c='';document.querySelectorAll('section').forEach(s=>{{if(window.scrollY>=s.offsetTop-120)c=s.id;}});
+    document.querySelectorAll('.toc a').forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+c));
 }});
 </script>
 </body>

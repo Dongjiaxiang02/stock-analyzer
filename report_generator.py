@@ -209,9 +209,12 @@ def _build_html(watch_results: dict, hot_results: list, run_time: str,
         pct_str = f"+{pct:.2f}%" if pct >= 0 else f"{pct:.2f}%"
 
         mc = stock.get("market_cap", 0)
-        mc_str = f"{mc:.0f} 亿" if mc > 0 else "—"
+        mc_str = f"{mc:.0f}亿" if mc > 0 else "—"
         pe = stock.get("pe", 0)
-        pe_str = f" PE {pe:.0f}" if pe > 0 else ""
+        pe_warn = "pe-warn" if pe > 200 else ""
+        pe_str = f"<span class='{pe_warn}'>PE(TTM){pe:.0f}</span>" if pe > 0 else "—"
+        turnover = stock.get('turnover', 0)
+        to_warn = " <span class='to-warn'>⚠高换手{:.0f}%</span>".format(turnover) if turnover > 20 else ""
         hot_rows += f"""
         <tr>
             <td>{i}</td>
@@ -219,9 +222,10 @@ def _build_html(watch_results: dict, hot_results: list, run_time: str,
             <td class="{pct_class}">{pct_str}</td>
             <td>{_fmt_amount(stock.get('amount', 0))}</td>
             <td>{mc_str}</td>
-            <td>{stock.get('turnover', 'N/A')}%</td>
+            <td>{pe_str}</td>
+            <td>{stock.get('turnover', 'N/A')}%{to_warn}</td>
             <td>{stock.get('sector', '')}</td>
-            <td class="driver">{stock.get('driver_note', '')}{pe_str}</td>
+            <td class="driver">{stock.get('driver_note', '')}</td>
         </tr>"""
 
     # --- 完整 HTML（科技感深色主题 + 目录导航）---
@@ -328,6 +332,12 @@ def _build_html(watch_results: dict, hot_results: list, run_time: str,
     .suggestion {{ font-size: 12px; max-width: 340px; line-height: 1.5; }}
     .risk-note {{ color: var(--muted); font-size: 10px; }}
     .driver {{ font-size: 11px; color: var(--muted); max-width: 340px; }}
+    .pe-warn {{ background: #fefcbf; color: #975a16; padding: 1px 6px; border-radius: 3px; font-weight: 700; }}
+    .to-warn {{ color: #e53e3e; font-weight: 700; font-size: 10px; }}
+    .alert-box {{ background: #fff5f5; border: 1px solid #fc8181; border-left: 4px solid #e53e3e;
+        border-radius: 6px; padding: 10px 16px; margin: 8px 0; font-size: 12px; }}
+    .news-bull {{ background: #f0fff4; border-left: 3px solid #38a169; padding: 8px 14px; margin: 6px 0; border-radius: 4px; }}
+    .news-bear {{ background: #fff5f5; border-left: 3px solid #e53e3e; padding: 8px 14px; margin: 6px 0; border-radius: 4px; }}
 
     /* ── Summary card ── */
     .summary-card {{

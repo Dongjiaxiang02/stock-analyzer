@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>股票分析日报</title>
+<style>
+    body { font-family: "Microsoft YaHei", sans-serif; background: #f4f7fb; color: #172b4d;
+           display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+    .box { background: #fff; border-radius: 14px; padding: 40px 48px; box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+           text-align: center; max-width: 500px; }
+    h1 { font-size: 22px; margin-bottom: 8px; }
+    p { color: #667085; font-size: 14px; margin: 12px 0; }
+    a { color: #2b6cb0; text-decoration: none; font-weight: 600; }
+    .time { color: #667085; font-size: 12px; margin-top: 24px; }
+</style>
+</head>
+<body>
+<div class="box">
+    <h1>📈 股票自动分析日报</h1>
+    <p>每个交易日 16:00 自动生成</p>
+    <p>报告由 GitHub Actions 云端运行<br>数据来源：腾讯/新浪公开行情接口</p>
+    <p>⚠️ 所有分析仅供参考，不构成投资建议</p>
+    <p><small>最新报告：<a href="#" id="latest">加载中...</a></small></p>
+    <div class="time">Powered by GitHub Pages</div>
+</div>
+<script>
+// Try to find the latest report
+const today = new Date();
+const yyyy = today.getFullYear();
+const mm = String(today.getMonth()+1).padStart(2,'0');
+const dd = String(today.getDate()).padStart(2,'0');
+const url = yyyy+mm+dd + '-股票分析报告.html';
+document.getElementById('latest').href = url;
+document.getElementById('latest').textContent = url;
+// Also try to auto-redirect
+fetch(url).then(r => { if(r.ok) location.href = url; });
+</script>
+</body>
+</html>

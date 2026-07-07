@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>20260707-股票分析报告</title>
+<style>
+    :root {
+        --bg1:#f4f7fb; --bg2:#f8fafc; --card:#fff;
+        --bd:#e1e6ed; --t1:#172b4d; --t2:#344054; --t3:#667085;
+        --blue1:#1e57b7; --blue2:#2b74d9;
+        --blue-light:#eef3fc; --blue-bg:#f1f5fb;
+        --red:#d63031; --green:#099268; --orange:#e07b39;
+        --red-bg:#fef2f2; --green-bg:#ecfdf5; --orange-bg:#fff7ed;
+        --purple-tag:#f3e8ff; --purple-text:#7c3aed;
+        --hover:#e8eff9; --shadow:0 2px 12px rgba(0,0,0,0.05);
+        --shadow-md:0 4px 20px rgba(0,0,0,0.07);
+        --radius:12px; --trans:all 0.25s ease;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html{scroll-behavior:smooth;}
+    body{
+        font-family:"Inter","Microsoft YaHei","PingFang SC",-apple-system,sans-serif;
+        background:linear-gradient(180deg,var(--bg1) 0%,var(--bg2) 100%);
+        color:var(--t2);font-size:14px;line-height:1.65;
+        padding:0 clamp(8px,4vw,24px);min-height:100vh;
+    }
+    .container{max-width:1500px;margin:0 auto;}
+
+    /* NAV */
+    .nav{
+        position:sticky;top:0;z-index:200;
+        background:linear-gradient(90deg,var(--blue1) 0%,var(--blue2) 100%);
+        margin:0 calc(-1*clamp(8px,4vw,24px));padding:0 clamp(8px,4vw,24px);
+        display:flex;align-items:center;gap:32px;height:48px;
+        box-shadow:0 2px 16px rgba(30,87,183,0.2);
+    }
+    .nav-brand{font-weight:700;font-size:15px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.15);white-space:nowrap;}
+    .nav a{
+        color:rgba(255,255,255,0.82);text-decoration:none;font-size:13px;font-weight:500;
+        padding:4px 0;position:relative;transition:var(--trans);white-space:nowrap;
+    }
+    .nav a::after{
+        content:'';position:absolute;bottom:-3px;left:0;width:0;height:2px;
+        background:rgba(255,255,255,0.9);border-radius:1px;transition:var(--trans);
+    }
+    .nav a:hover,.nav a.active{color:#fff;}
+    .nav a:hover::after,.nav a.active::after{width:100%;}
+
+    /* HEADER */
+    .header{
+        background:linear-gradient(135deg,#fff 0%,#f8fafc 100%);
+        border:1px solid var(--bd);border-radius:14px;
+        padding:28px 36px;margin:20px 0 24px;
+        box-shadow:var(--shadow);position:relative;overflow:hidden;
+    }
+    .header::after{
+        content:'';position:absolute;bottom:0;left:16px;right:16px;
+        height:1px;background:linear-gradient(90deg,transparent,rgba(49,116,209,0.1),transparent);
+    }
+    .header h1{font-size:24px;font-weight:800;color:var(--t1);letter-spacing:-0.3px;}
+    .header .time{font-size:12px;color:var(--t3);margin-top:6px;}
+    .header .badge{
+        display:inline-block;background:var(--blue-light);color:var(--blue1);
+        font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;margin-left:10px;vertical-align:middle;
+    }
+
+    /* SECTION TITLES */
+    .sec-h1{
+        font-size:16px;font-weight:700;color:var(--t1);margin:28px 0 12px;
+        padding-left:14px;border-left:4px solid var(--blue2);line-height:1.3;
+    }
+
+    /* CARDS */
+    .card{
+        background:var(--card);border:1px solid var(--bd);border-radius:var(--radius);
+        padding:20px;margin-bottom:16px;box-shadow:var(--shadow);transition:var(--trans);
+    }
+
+    /* TABLE */
+    .tbl-wrap{overflow-x:auto;border-radius:var(--radius);box-shadow:var(--shadow);background:var(--card);padding:8px;}
+    table{width:100%;border-collapse:collapse;font-size:12px;}
+    th{
+        background:linear-gradient(180deg,#225bb0 0%,#3174d1 100%);
+        color:#fff;font-weight:600;padding:12px 10px;text-align:center;
+        border-right:1px solid rgba(255,255,255,0.08);white-space:nowrap;font-size:11px;
+    }
+    td{padding:11px 10px;border-bottom:1px solid #f1f3f6;text-align:center;}
+    tr:nth-child(odd) td{background:#fff;}
+    tr:nth-child(even) td{background:var(--blue-bg);}
+    tr:hover td{background:var(--hover)!important;transition:var(--trans);}
+    td.left{text-align:left;} td.right{text-align:right;}
+    .code{color:var(--t3);font-size:10px;font-family:"SF Mono",Consolas,monospace;}
+    .bold{font-weight:600;}
+
+    /* PILL TAGS */
+    .pill-up{display:inline-block;color:var(--red);font-weight:600;font-size:12px;}
+    .pill-down{display:inline-block;color:var(--green);font-weight:600;font-size:12px;}
+    .pill-warn{
+        display:inline-block;background:var(--orange-bg);color:var(--orange);
+        padding:2px 10px;border-radius:12px;font-size:10px;font-weight:600;
+    }
+    .pill-pe{
+        display:inline-block;background:#fef9c3;color:#a16207;
+        padding:2px 10px;border-radius:12px;font-size:10px;font-weight:600;
+    }
+    .pill-tag{
+        display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;margin:1px 2px;
+    }
+    .tag-bull{background:var(--blue-light);color:var(--blue1);}
+    .tag-bear{background:var(--red-bg);color:#b91c1c;}
+    .tag-neut{background:var(--purple-tag);color:var(--purple-text);}
+
+    /* SUGGESTION BOX */
+    .sug-box{
+        padding:8px 12px;border-radius:10px;font-size:11px;line-height:1.5;max-width:340px;border:1px solid;transition:var(--trans);
+    }
+    .sug-bull{background:var(--green-bg);border-color:#a7f3d0;color:#065f46;}
+    .sug-bear{background:var(--red-bg);border-color:#fecaca;color:#991b1b;}
+    .sug-neut{background:#fffbeb;border-color:#fde68a;color:#92400e;}
+
+    /* NEWS */
+    .news-block{border-radius:10px;padding:12px 16px;margin:8px 0;font-size:12px;line-height:1.7;}
+    .news-bull{background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border:1px solid #bbf7d0;}
+    .news-bear{background:linear-gradient(135deg,#fff5f5,#fef2f2);border:1px solid #fecaca;}
+    .news-other{background:var(--blue-light);border:1px solid #bfdbfe;}
+
+    /* HIGHLIGHTS */
+    .hl-num{font-size:18px;font-weight:800;color:var(--blue1);}
+    .hl-price{font-weight:700;color:var(--t1);}
+    .hl-warn{color:var(--red);font-weight:600;}
+
+    /* FOOTER */
+    .disclaimer{
+        background:#fefce8;border:1px solid #fde68a;border-radius:10px;
+        padding:14px 22px;margin-top:24px;font-size:11px;color:#a16207;text-align:center;
+    }
+    .footer{text-align:center;color:var(--t3);font-size:10px;margin:20px 0 16px;}
+
+    @media(max-width:900px){
+        .nav{gap:16px;overflow-x:auto;}.nav a{font-size:11px;}
+        .header{padding:18px 20px;}.header h1{font-size:20px;}
+        table{font-size:11px;}th,td{padding:8px 6px;}
+    }
+    @media print{body{background:#fff;}.nav{display:none;}}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+    <span class="nav-brand">📈 股票日报</span>
+    <a href="#sec1">自选股分析</a>
+    <a href="#sec2">热门涨幅</a>
+    <a href="#sec3">投资建议</a>
+</nav>
+
+<div class="container">
+
+<div class="header">
+    <h1>📈 股票自动分析日报</h1>
+    <div class="time">2026-07-07 09:27:12 &nbsp;|&nbsp; 数据源: 腾讯/新浪公开接口 &nbsp;|&nbsp; 仅供参考<span class="badge">实时数据</span></div>
+</div>
+
+<section id="sec1">
+    <div class="sec-h1">自选股跟踪分析</div>
+    <div class="tbl-wrap"><table>
+    <thead><tr>
+        <th>名称/代码</th><th>最新价</th><th>涨跌幅</th>
+        <th>今开/最高/最低</th><th>成交额</th><th>换手</th>
+        <th>近1/3日</th><th>MA5/10/20</th><th>均线状态</th><th>MACD</th><th>支撑/压力</th><th>参考建议</th>
+    </tr></thead>
+    <tbody>
+        <tr>
+            <td class="left"><strong>石头科技</strong><br><span class="code">688169</span></td>
+            <td class="right bold">¥96.28</td>
+            <td class="down">-1.24%</td>
+            <td class="right">97.49/98.88/96.0</td>
+            <td class="right">5.54 亿</td>
+            <td class="right">2.19%</td>
+            <td class="right">-1.24%/+0.98%</td>
+            <td class="right">MA5:96.92<br>MA10:95.31<br>MA20:98.15</td>
+            <td><span class="pill-tag signal-neut">粘合震荡 ↔</span><br>— —</td>
+            <td><span class="pill-tag signal-bull">向上 ↗</span><br>DIF:-3.772<br>零轴下方 ▼</td>
+            <td class="right bold">支撑 ¥89.53<br>压力 ¥114.0</td>
+            <td class="left"><div class="sug-box sug-bear">🟡 偏空震荡(空头75%) 支撑¥90，重仓关注减仓<br><span class="risk-note">均线粘合震荡</span></div></td>
+        </tr>
+        <tr>
+            <td class="left"><strong>科沃斯</strong><br><span class="code">603486</span></td>
+            <td class="right bold">¥51.89</td>
+            <td class="down">-1.91%</td>
+            <td class="right">52.66/53.9/51.73</td>
+            <td class="right">3.08 亿</td>
+            <td class="right">1.02%</td>
+            <td class="right">-1.91%/+1.23%</td>
+            <td class="right">MA5:52.48<br>MA10:51.51<br>MA20:53.36</td>
+            <td><span class="pill-tag signal-neut">粘合震荡 ↔</span><br>— —</td>
+            <td><span class="pill-tag signal-bull">向上 ↗</span><br>DIF:-2.202<br>零轴下方 ▼ ✚金叉</td>
+            <td class="right bold">支撑 ¥48.4<br>压力 ¥61.28</td>
+            <td class="left"><div class="sug-box sug-bull">🟡 偏多震荡(62%) 支撑¥48 压力¥61，持有观望<br><span class="risk-note">均线粘合震荡 | MACD金叉</span></div></td>
+        </tr>
+        <tr>
+            <td class="left"><strong>嘉美包装</strong><br><span class="code">002969</span></td>
+            <td class="right bold">¥12.89</td>
+            <td class="down">-3.73%</td>
+            <td class="right">13.26/13.47/12.84</td>
+            <td class="right">3.77 亿</td>
+            <td class="right">2.64%</td>
+            <td class="right">-3.73%/-7.13%</td>
+            <td class="right">MA5:13.64<br>MA10:13.91<br>MA20:14.7</td>
+            <td><span class="pill-tag signal-bear">空头排列 ↓</span><br>— —</td>
+            <td><span class="pill-tag signal-bull">向上 ↗</span><br>DIF:-1.389<br>零轴下方 ▼</td>
+            <td class="right bold">支撑 ¥12.84<br>压力 ¥16.86</td>
+            <td class="left"><div class="sug-box sug-bear">🔴 偏空(空头100%) 支撑¥13 压力¥17，控制仓位<br><span class="risk-note">均线空头排列 | 近3日-7.13%超跌</span></div></td>
+        </tr>
+        <tr>
+            <td class="left"><strong>影石创新</strong><br><span class="code">688775</span></td>
+            <td class="right bold">¥131.22</td>
+            <td class="down">-1.47%</td>
+            <td class="right">133.28/137.44/131.1</td>
+            <td class="right">3.70 亿</td>
+            <td class="right">1.07%</td>
+            <td class="right">-1.47%/-2.37%</td>
+            <td class="right">MA5:134.38<br>MA10:135.14<br>MA20:143.62</td>
+            <td><span class="pill-tag signal-bear">空头排列 ↓</span><br>死叉 ✖ —</td>
+            <td><span class="pill-tag signal-bull">向上 ↗</span><br>DIF:-11.045<br>零轴下方 ▼</td>
+            <td class="right bold">支撑 ¥130.88<br>压力 ¥172.0</td>
+            <td class="left"><div class="sug-box sug-bear">🔴 偏空(空头100%) 支撑¥131 压力¥172，控制仓位<br><span class="risk-note">均线空头排列</span></div></td>
+        </tr>
+        <tr>
+            <td class="left"><strong>小米集团-W</strong><br><span class="code">01810</span></td>
+            <td class="right bold">¥23.1</td>
+            <td class="down">-0.77%</td>
+            <td class="right">23.3/24.18/23.02</td>
+            <td class="right">47.85 亿</td>
+            <td class="right">12.92%</td>
+            <td class="right">-0.77%/+2.21%</td>
+            <td class="right">MA5:22.72<br>MA10:22.47<br>MA20:24.17</td>
+            <td><span class="pill-tag signal-neut">粘合震荡 ↔</span><br>金叉 ✚ —</td>
+            <td><span class="pill-tag signal-bull">向上 ↗</span><br>DIF:-1.583<br>零轴下方 ▼ ✚金叉</td>
+            <td class="right bold">支撑 ¥21.3<br>压力 ¥28.1</td>
+            <td class="left"><div class="sug-box sug-bull">🟡 偏多震荡(62%) 支撑¥21 压力¥28，持有观望<br><span class="risk-note">均线粘合震荡 | MACD金叉</span></div></td>
+        </tr></tbody>
+    </table></div>
+</section>
+
+<section id="sec2">
+    <div class="sec-h1">当日热门涨幅个股</div>
+    <div class="tbl-wrap"><table>
+    <thead><tr>
+        <th>#</th><th>名称/代码</th><th>涨幅</th><th>成交额</th>
+        <th>总市值</th><th>PE(TTM)</th><th>换手</th><th>板块</th><th>驱动逻辑</th>
+    </tr></thead>
+    <tbody>
+        <tr>
+            <td>1</td>
+            <td class="left"><strong>华天科技</strong><br><span class="code">002185</span></td>
+            <td class="up">+9.98%</td>
+            <td class="right">119.99 亿</td>
+            <td class="right">729亿</td>
+            <td><span class='pill-pe'>PE(TTM)729</span></td>
+            <td class="right">16.93%</td>
+            <td>全市场热门</td>
+            <td class="left driver">涨停封板，短线情绪推动，关注次日溢价和换手率变化</td>
+        </tr>
+        <tr>
+            <td>2</td>
+            <td class="left"><strong>TCL中环</strong><br><span class="code">002129</span></td>
+            <td class="up">+9.98%</td>
+            <td class="right">37.97 亿</td>
+            <td class="right">446亿</td>
+            <td><span class='pill-pe'>PE(TTM)445</span></td>
+            <td class="right">8.74%</td>
+            <td>全市场热门</td>
+            <td class="left driver">涨停封板，短线情绪推动，关注次日溢价和换手率变化</td>
+        </tr>
+        <tr>
+            <td>3</td>
+            <td class="left"><strong>芯海科技</strong><br><span class="code">688595</span></td>
+            <td class="up">+7.10%</td>
+            <td class="right">5.43 亿</td>
+            <td class="right">60亿</td>
+            <td><span class=''>PE(TTM)60</span></td>
+            <td class="right">8.91%</td>
+            <td>全市场热门</td>
+            <td class="left driver">主力资金介入，量价配合，关注板块联动和持续性</td>
+        </tr>
+        <tr>
+            <td>4</td>
+            <td class="left"><strong>埃斯顿</strong><br><span class="code">002747</span></td>
+            <td class="up">+6.45%</td>
+            <td class="right">83.04 亿</td>
+            <td class="right">474亿</td>
+            <td><span class='pill-pe'>PE(TTM)383</span></td>
+            <td class="right">22.49% <span class='pill-warn'>高换手22%</span></td>
+            <td>全市场热门</td>
+            <td class="left driver">主力资金介入，量价配合，关注板块联动和持续性</td>
+        </tr>
+        <tr>
+            <td>5</td>
+            <td class="left"><strong>光迅科技</strong><br><span class="code">002281</span></td>
+            <td class="up">+6.05%</td>
+            <td class="right">102.39 亿</td>
+            <td class="right">1834亿</td>
+            <td><span class='pill-pe'>PE(TTM)1730</span></td>
+            <td class="right">6.03%</td>
+            <td>全市场热门</td>
+            <td class="left driver">主力资金介入，量价配合，关注板块联动和持续性</td>
+        </tr>
+        <tr>
+            <td>6</td>
+            <td class="left"><strong>传音控股</strong><br><span class="code">688036</span></td>
+            <td class="up">+5.25%</td>
+            <td class="right">21.47 亿</td>
+            <td class="right">734亿</td>
+            <td><span class='pill-pe'>PE(TTM)734</span></td>
+            <td class="right">2.9%</td>
+            <td>全市场热门</td>
+            <td class="left driver">主力资金介入，量价配合，关注板块联动和持续性</td>
+        </tr>
+        <tr>
+            <td>7</td>
+            <td class="left"><strong>容百科技</strong><br><span class="code">688005</span></td>
+            <td class="up">+5.08%</td>
+            <td class="right">9.94 亿</td>
+            <td class="right">204亿</td>
+            <td><span class='pill-pe'>PE(TTM)204</span></td>
+            <td class="right">4.71%</td>
+            <td>全市场热门</td>
+            <td class="left driver">主力资金介入，量价配合，关注板块联动和持续性</td>
+        </tr>
+        <tr>
+            <td>8</td>
+            <td class="left"><strong>恒玄科技</strong><br><span class="code">688608</span></td>
+            <td class="up">+4.85%</td>
+            <td class="right">8.09 亿</td>
+            <td class="right">275亿</td>
+            <td><span class='pill-pe'>PE(TTM)275</span></td>
+            <td class="right">2.94%</td>
+            <td>全市场热门</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr>
+        <tr>
+            <td>9</td>
+            <td class="left"><strong>沪硅产业</strong><br><span class="code">688126</span></td>
+            <td class="up">+4.83%</td>
+            <td class="right">67.62 亿</td>
+            <td class="right">1199亿</td>
+            <td><span class='pill-pe'>PE(TTM)1031</span></td>
+            <td class="right">6.52%</td>
+            <td>全市场热门</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr>
+        <tr>
+            <td>10</td>
+            <td class="left"><strong>源杰科技</strong><br><span class="code">688498</span></td>
+            <td class="up">+4.58%</td>
+            <td class="right">81.98 亿</td>
+            <td class="right">2135亿</td>
+            <td><span class='pill-pe'>PE(TTM)2108</span></td>
+            <td class="right">4.02%</td>
+            <td>全市场热门</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr>
+        <tr>
+            <td>11</td>
+            <td class="left"><strong>五矿新能</strong><br><span class="code">688779</span></td>
+            <td class="up">+4.10%</td>
+            <td class="right">5.43 亿</td>
+            <td class="right">161亿</td>
+            <td><span class=''>PE(TTM)161</span></td>
+            <td class="right">3.29%</td>
+            <td>全市场热门</td>
+            <td class="left driver">新能源：光伏装机超预期+锂电排产回暖，关注新技术路线(固态/钠电)</td>
+        </tr>
+        <tr>
+            <td>12</td>
+            <td class="left"><strong>晶盛机电</strong><br><span class="code">300316</span></td>
+            <td class="up">+3.84%</td>
+            <td class="right">16.17 亿</td>
+            <td class="right">655亿</td>
+            <td><span class='pill-pe'>PE(TTM)616</span></td>
+            <td class="right">2.67%</td>
+            <td>全市场热门</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr>
+        <tr>
+            <td>13</td>
+            <td class="left"><strong>安路科技</strong><br><span class="code">688107</span></td>
+            <td class="up">+3.50%</td>
+            <td class="right">5.92 亿</td>
+            <td class="right">174亿</td>
+            <td><span class=''>PE(TTM)174</span></td>
+            <td class="right">3.39%</td>
+            <td>全市场热门</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr>
+        <tr>
+            <td>14</td>
+            <td class="left"><strong>全志科技</strong><br><span class="code">300458</span></td>
+            <td class="up">+3.18%</td>
+            <td class="right">25.66 亿</td>
+            <td class="right">381亿</td>
+            <td><span class='pill-pe'>PE(TTM)312</span></td>
+            <td class="right">8.13%</td>
+            <td>全市场热门</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr>
+        <tr>
+            <td>15</td>
+            <td class="left"><strong>格科微</strong><br><span class="code">688728</span></td>
+            <td class="up">+3.07%</td>
+            <td class="right">16.65 亿</td>
+            <td class="right">576亿</td>
+            <td><span class='pill-pe'>PE(TTM)554</span></td>
+            <td class="right">2.97%</td>
+            <td>全市场热门</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr>
+        <tr>
+            <td>16</td>
+            <td class="left"><strong>通富微电</strong><br><span class="code">002156</span></td>
+            <td class="up">+3.07%</td>
+            <td class="right">85.76 亿</td>
+            <td class="right">1035亿</td>
+            <td><span class='pill-pe'>PE(TTM)1035</span></td>
+            <td class="right">8.31%</td>
+            <td>全市场热门</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr>
+        <tr>
+            <td>17</td>
+            <td class="left"><strong>芯源微</strong><br><span class="code">688037</span></td>
+            <td class="up">+3.03%</td>
+            <td class="right">29.31 亿</td>
+            <td class="right">770亿</td>
+            <td><span class='pill-pe'>PE(TTM)770</span></td>
+            <td class="right">3.8%</td>
+            <td>全市场热门</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr>
+        <tr>
+            <td>18</td>
+            <td class="left"><strong>天孚通信</strong><br><span class="code">300394</span></td>
+            <td class="up">+2.99%</td>
+            <td class="right">102.10 亿</td>
+            <td class="right">2663亿</td>
+            <td><span class='pill-pe'>PE(TTM)2657</span></td>
+            <td class="right">3.9%</td>
+            <td>全市场热门</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr>
+        <tr>
+            <td>19</td>
+            <td class="left"><strong>扬杰科技</strong><br><span class="code">300373</span></td>
+            <td class="up">+2.63%</td>
+            <td class="right">34.77 亿</td>
+            <td class="right">733亿</td>
+            <td><span class='pill-pe'>PE(TTM)731</span></td>
+            <td class="right">4.79%</td>
+            <td>全市场热门</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr>
+        <tr>
+            <td>20</td>
+            <td class="left"><strong>三安光电</strong><br><span class="code">600703</span></td>
+            <td class="up">+2.48%</td>
+            <td class="right">57.48 亿</td>
+            <td class="right">887亿</td>
+            <td><span class='pill-pe'>PE(TTM)887</span></td>
+            <td class="right">6.53%</td>
+            <td>全市场热门</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr>
+        <tr>
+            <td>21</td>
+            <td class="left"><strong>绿的谐波</strong><br><span class="code">688017</span></td>
+            <td class="up">+2.44%</td>
+            <td class="right">87.56 亿</td>
+            <td class="right">853亿</td>
+            <td><span class='pill-pe'>PE(TTM)853</span></td>
+            <td class="right">10.35%</td>
+            <td>机器人</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr>
+        <tr>
+            <td>22</td>
+            <td class="left"><strong>德科立</strong><br><span class="code">688205</span></td>
+            <td class="up">+2.11%</td>
+            <td class="right">12.21 亿</td>
+            <td class="right">276亿</td>
+            <td><span class='pill-pe'>PE(TTM)276</span></td>
+            <td class="right">4.43%</td>
+            <td>光模块</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr>
+        <tr>
+            <td>23</td>
+            <td class="left"><strong>中际旭创</strong><br><span class="code">300308</span></td>
+            <td class="up">+2.09%</td>
+            <td class="right">327.09 亿</td>
+            <td class="right">12512亿</td>
+            <td><span class='pill-pe'>PE(TTM)12452</span></td>
+            <td class="right">2.64%</td>
+            <td>光模块</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr>
+        <tr>
+            <td>24</td>
+            <td class="left"><strong>芯原股份</strong><br><span class="code">688521</span></td>
+            <td class="up">+1.96%</td>
+            <td class="right">69.12 亿</td>
+            <td class="right">1605亿</td>
+            <td><span class='pill-pe'>PE(TTM)1605</span></td>
+            <td class="right">4.22%</td>
+            <td>半导体</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr>
+        <tr>
+            <td>25</td>
+            <td class="left"><strong>迈为股份</strong><br><span class="code">300751</span></td>
+            <td class="up">+1.86%</td>
+            <td class="right">19.03 亿</td>
+            <td class="right">728亿</td>
+            <td><span class='pill-pe'>PE(TTM)503</span></td>
+            <td class="right">3.78%</td>
+            <td>新能源</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr>
+        <tr>
+            <td>26</td>
+            <td class="left"><strong>璞泰来</strong><br><span class="code">603659</span></td>
+            <td class="up">+1.41%</td>
+            <td class="right">7.61 亿</td>
+            <td class="right">588亿</td>
+            <td><span class='pill-pe'>PE(TTM)588</span></td>
+            <td class="right">1.29%</td>
+            <td>新能源</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr>
+        <tr>
+            <td>27</td>
+            <td class="left"><strong>星源材质</strong><br><span class="code">300568</span></td>
+            <td class="up">+1.09%</td>
+            <td class="right">22.49 亿</td>
+            <td class="right">304亿</td>
+            <td><span class='pill-pe'>PE(TTM)246</span></td>
+            <td class="right">8.96%</td>
+            <td>新能源</td>
+            <td class="left driver">跟随市场节奏，需观察量能确认趋势</td>
+        </tr></tbody>
+    </table></div>
+    <p style="margin-top:12px;color:var(--t3);font-size:12px;">◆ 共筛选 27 只值得关注的热门标的</p>
+</section>
+
+<section id="sec3">
+    <div class="sec-h1">今日投资建议</div>
+    <div class="card" style="font-size:14px;line-height:2;white-space:pre-wrap;padding:24px 30px;border-left:3px solid var(--blue2);">【一、大盘定性】上证指数 3990 ↓1.26% | 深证成指 15225 ↓1.24% | 创业板指 3912 ↓0.94%
+
+两市成交 25811亿
+
+上证支撑 3910 / 压力 4070 | 创业板支撑 3834 / 压力 3990
+
+定性：震荡分化，控制仓位高抛低吸
+
+【二、市场情绪】涨停≈2家/跌停≈0家 | 最高连板≈冰点（≤2板） | 情绪评分：25分 偏冷🧊
+
+【三、资金面】
+  北向资金：数据源故障（push2.eastmoney不可用），参考港股通替代数据暂缺
+  主力净流入TOP3（估算）：其他(1470亿) | 新能源(5亿)
+  主力净流出TOP3（估算）：其他(1636亿) | 医药(105亿) | 机器人(14亿)
+  风格：资金分散，板块轮动加速
+
+【四、消息面汇总】
+  <details open><summary><b>🟢 利好(13条)</b></summary>· AI芯片需求持续火爆，三星预计本季度利润再创新高<br>· 中科大少年班“学霸”，创业12年，干出1200亿半导体设备龙头<br>· 三星电子跌近7%，Q2业绩创纪录，但资本开支与需求隐忧压制前景<br>· 午后异动！002384，大幅拉升<br>· 外围市场，利空突袭！股市“吹哨人”，突然预警<br>· 新能源汽车投诉量持续走高，买车前后这些维权知识要记牢<br>· 连续20个月！中国央行，继续增持黄金<br>· 油脂：干旱又来了？</details>
+  <details open><summary><b>🔴 利空(7条)</b></summary>· 韩华海洋竞标加拿大新一代潜艇舰队失利，股价暴跌23%<br>· 前美联储官员布拉德：年内大概率启动加息，9月成关键窗口<br>· 印度时尚零售商翠伦因营收增速不及预期，股价暴跌11%<br>· 华夏银行：刘彦雷担任董事会秘书任职资格获监管核准<br>· 【点石成金|豆粕】中美农产品贸易或修复，短期连粕跟随美豆运行</details>
+  <details><summary><b>📋 其他(4条)</b></summary>· 独角兽夏禾科技冲关科创板，大客户依赖病现隐忧<br>· 创业板高位震荡，成长行情还能走多远<br>· A股尾盘，大象起舞</details>
+  盘面利空：三大指数全线收跌
+
+【五、半导体+光模块深度】
+  半导体细分：设备(1只)↑+0.0% 量2478万手 | 材料(1只)↑+4.8% 量18516万手 | 封测(2只)↑+6.5% 量689万手 | 存储(3只)↓-4.4% 量2881万手 | 设计(6只)↑+0.1% 量8694万手 | 制造(2只)↑+1.2% 量9823万手
+  光模块/液冷均涨幅+0.1% 龙头：光迅科技(+6.0%), 源杰科技(+4.6%), 天孚通信(+3.0%)
+  海外大客户链(中际/天孚/新易盛/源杰)均涨+2.6%——北美云厂商资本开支驱动，中线景气确定
+  国内算力链(太辰光/仕佳/光迅/菲菱科思/高澜)均涨-2.2%——国内算力自建+液冷渗透，短线博弈属性强
+  判定：温和修复，关注北美云厂商Q3资本开支指引
+  ⚠ 设备细分放量明显（均量2478万手），短线活跃度提升，关注持续性
+  ⚠ 材料细分放量明显（均量18516万手），短线活跃度提升，关注持续性
+  ⚠ 存储细分放量明显（均量960万手），短线活跃度提升，关注持续性
+  ⚠ 设计细分放量明显（均量1449万手），短线活跃度提升，关注持续性
+  ⚠ 制造细分放量明显（均量4911万手），短线活跃度提升，关注持续性
+  ⚠ 高PE预警(TTM)：华天科技(PE729), TCL中环(PE445), 埃斯顿(PE383), 光迅科技(PE1730), 传音控股(PE734)——依赖行业景气兑现消化估值，警惕增速不及预期导致戴维斯双杀
+
+【六、跌幅板块&市场风险】
+  弱势板块：医药(均-3.8%) | 其他(均-3.8%) | 机器人(均-2.8%)
+  自选弱势：嘉美包装
+  ⚠ 高位放量预警：华天科技——防获利兑现回落风险
+  ⚠ 高换手预警(>20%)：埃斯顿——短线筹码博弈激烈，注意波动风险
+  避雷：纯题材无业绩支撑、ST/问题股、大股东减持中、高位放量滞涨
+
+【七、明日行情推演】
+  关键点位：上证支撑3910/压力4070 | 创业板支撑3834/压力3990
+  轮动预判：科技休整，关注医药/新能源能否承接轮动
+  情景① 偏多（概率30%）：早盘放量+科技延续 → 侧重半导体设备/光模块龙头
+  情景② 震荡（概率50%）：量能持平+板块轮动 → 轮动医药/新能源，高抛低吸
+  情景③ 偏空（概率20%）：低开低走+缩量 → 偏向红利防御/现金，等企稳信号
+
+【八、仓位策略】
+  今日仓位：3成以下 | 明日建议：3成以下
+  主打：机器人、光模块、半导体
+  潜伏：科沃斯(新品T50系列发布+海外渠道扩张+扫地机器人渗透率提升) | 小米集团-W(SU7持续放量+汽车毛利率改善+手机高端化+AIoT生态变现)
+  规避：纯题材无业绩、ST/问题股、大股东减持中、高位放量滞涨
+  短线：短线(1-3日)：博弈华天科技、TCL中环、芯海科技、埃斯顿，快进快出±5%止损
+  中线：中线(1-4周)：观望均线多头标的，MA20附近分批建仓，目标10-20%波段</div>
+</section>
+
+<div class="disclaimer">⚠️ <strong>免责声明：</strong>⚠️ 免责声明：本报告所有分析仅基于公开历史行情数据，不构成任何投资建议。股市有风险，入市需谨慎。请勿依据本报告做出任何投资决策，投资者应独立判断并自担风险。</div>
+<div class="footer">本报告由股票自动分析程序生成 &nbsp;|&nbsp; 数据来源: 腾讯/新浪公开行情接口 &nbsp;|&nbsp; 仅供参考</div>
+
+</div>
+<script>
+document.querySelectorAll('.nav a').forEach(a=>{
+    a.addEventListener('click',e=>{e.preventDefault();const t=document.querySelector(a.getAttribute('href'));if(t)window.scrollTo({top:t.offsetTop-56,behavior:'smooth'});});
+});
+window.addEventListener('scroll',()=>{
+    let c='';document.querySelectorAll('section').forEach(s=>{if(window.scrollY>=s.offsetTop-120)c=s.id;});
+    document.querySelectorAll('.nav a').forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+c));
+});
+</script>
+</body>
+</html>

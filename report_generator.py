@@ -148,6 +148,11 @@ def generate_html_report(watch_results: dict, hot_results: list,
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(html)
 
+    # 同时输出一份 index.html 作为固定入口
+    index_path = os.path.join(OUTPUT_DIR, "index.html")
+    with open(index_path, "w", encoding="utf-8") as f:
+        f.write(html)
+
     logger.info("HTML 报告已保存: %s", filepath)
     return filepath
 

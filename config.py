@@ -75,8 +75,14 @@ MACD_SIGNAL = 9                         # MACD 信号线
 # ============================================================
 # 四、输出路径
 # ============================================================
-OUTPUT_DIR = r"D:\GUPIAO"               # HTML 报告 + CSV 存档目录
-CSV_ARCHIVE_DIR = r"D:\GUPIAO\csv_archive"  # 每日 CSV 存档
+# GitHub Actions 云端部署 → 存到 docs/ 目录，本地 → D:\GUPIAO
+import os as _os
+if _os.environ.get("GITHUB_ACTIONS") == "true":
+    _BASE = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "docs")
+else:
+    _BASE = r"D:\GUPIAO"
+OUTPUT_DIR = _BASE
+CSV_ARCHIVE_DIR = _os.path.join(_BASE, "csv_archive")
 
 # ============================================================
 # 五、请求控制

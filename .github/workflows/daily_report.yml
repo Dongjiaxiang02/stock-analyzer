@@ -1,0 +1,38 @@
+name: 每日股票分析日报
+
+on:
+  schedule:
+    # 北京时间 16:00 = UTC 8:00（周一到周五）
+    - cron: "0 8 * * 1-5"
+  workflow_dispatch:
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: pip install pandas numpy requests
+
+      - name: 生成分析报告
+        run: python main.py
+
+      - name: 提交报告到GitHub Pages
+        run: |
+          git config user.name "StockBot"
+          git config user.email "bot@stock-analyzer.dev"
+          git add docs/
+          if git diff --staged --quiet; then
+            echo "No changes"
+          else
+            git commit -m "📊 $(date +%Y%m%d) 日报"
+            git push
+          fi

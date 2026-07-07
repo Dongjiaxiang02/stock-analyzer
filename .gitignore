@@ -12,9 +12,8 @@ venv/
 .vscode/
 .idea/
 
-# Output data (generated reports, not source)
+# Local output only (docs/ is for GitHub Pages)
 D:/GUPIAO/
-*.html
 
 # OS
 .DS_Store

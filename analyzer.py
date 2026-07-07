@@ -159,9 +159,9 @@ def generate_full_summary(watch_results, hot_results, indices, breadth, news, qu
         idx_lines.append(f"{info['name']} {info.get('price',0):.0f} {a}{abs(p):.2f}%")
     parts.append(f"【一、大盘定性】{' | '.join(idx_lines)}")
 
-    if total_amt > 0:
+    if total_amt and total_amt > 0:
         amt_str = f"两市成交 {total_amt/1e8:.0f}亿"
-        if ys_amt > 0:
+        if ys_amt and ys_amt > 0:
             chg = (total_amt/ys_amt - 1) * 100
             amt_str += f"（环比{chg:+.1f}%，{'放量' if chg>5 else '缩量' if chg<-5 else '持平'}）"
         parts.append(amt_str)

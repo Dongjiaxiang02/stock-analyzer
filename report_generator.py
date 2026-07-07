@@ -138,8 +138,7 @@ def generate_html_report(watch_results: dict, hot_results: list,
     返回:
         生成的文件路径
     """
-    today_str = datetime.now().strftime("%Y%m%d")
-    filename = f"{today_str}-股票分析报告.html"
+    filename = "今日股票分析报告.html"
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     filepath = os.path.join(OUTPUT_DIR, filename)
 

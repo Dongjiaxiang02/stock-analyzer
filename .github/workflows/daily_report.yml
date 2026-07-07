@@ -20,7 +20,7 @@ jobs:
           python-version: "3.12"
 
       - name: 安装依赖
-        run: pip install pandas numpy requests
+        run: pip install pandas numpy requests yfinance
 
       - name: 生成分析报告
         run: python main.py

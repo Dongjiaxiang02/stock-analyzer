@@ -185,8 +185,8 @@ def _fetch_tencent_quotes(codes: list) -> dict:
             if attempt < MAX_RETRIES:
                 time.sleep(RETRY_DELAY)
 
-    logger.error("腾讯行情全部失败")
-    return {}
+    logger.error("腾讯行情全部失败，尝试 yfinance...")
+    return _fetch_yfinance_quotes(codes)
 
 
 # ================================================================
@@ -251,8 +251,8 @@ def fetch_history_kline(code: str, days: int = LOOKBACK_DAYS) -> Optional[pd.Dat
             if attempt < MAX_RETRIES:
                 time.sleep(RETRY_DELAY)
 
-    logger.error("获取 %s 历史K线全部失败", code)
-    return None
+    logger.error("获取 %s 历史K线全部失败，尝试 yfinance...", code)
+    return _fetch_yfinance_history(code, days)
 
 
 # ================================================================
@@ -443,7 +443,71 @@ def fetch_market_indices() -> dict:
 
 
 # ================================================================
-# 6. akshare 备用通道（当腾讯不可用时尝试）
+# 6. yfinance 备用通道（GitHub Actions 海外环境使用）
+# ================================================================
+def _yfinance_code(code: str) -> str:
+    """转 yfinance 格式: 688169→688169.SS, 002969→002969.SZ, 01810→1810.HK"""
+    if len(code) == 5 and code.isdigit():
+        return code + ".HK"
+    return code + (".SS" if code.startswith(("6", "68")) else ".SZ")
+
+
+def _fetch_yfinance_quotes(codes: list) -> dict:
+    """通过 yfinance 批量获取实时行情（适用于 GitHub Actions 海外环境）"""
+    try:
+        import yfinance as yf
+    except ImportError:
+        logger.warning("yfinance 未安装")
+        return {}
+
+    result = {}
+    for code in codes:
+        ticker_str = _yfinance_code(code)
+        try:
+            tk = yf.Ticker(ticker_str)
+            info = tk.fast_info
+            price = info.get("lastPrice") or info.get("regularMarketPrice") or 0
+            prev = info.get("previousClose") or info.get("regularMarketPreviousClose") or price
+            pct = (price - prev) / prev * 100 if prev > 0 else 0
+            result[code] = {
+                "code": code, "name": info.get("shortName", code),
+                "price": price, "pre_close": prev,
+                "open": info.get("open") or price, "high": info.get("dayHigh") or price,
+                "low": info.get("dayLow") or price, "pct_change": round(pct, 2),
+                "volume": info.get("lastVolume") or 0,
+                "amount": price * (info.get("lastVolume") or 0),
+                "turnover": 0, "market_cap": info.get("marketCap", 0) / 1e8,
+                "pe": info.get("trailingPE", 0) or 0,
+            }
+        except Exception as e:
+            logger.warning("yfinance %s 失败: %s", code, str(e)[:60])
+    return result
+
+
+def _fetch_yfinance_history(code: str, days: int = 60) -> Optional[pd.DataFrame]:
+    """通过 yfinance 获取历史K线"""
+    try:
+        import yfinance as yf
+        tk = yf.Ticker(_yfinance_code(code))
+        df = tk.history(period=f"{days+30}d")
+        if df.empty:
+            return None
+        df = df.reset_index()
+        df = df.rename(columns={"Date": "date", "Open": "open", "High": "high",
+                                "Low": "low", "Close": "close", "Volume": "volume"})
+        df["amount"] = df["close"] * df["volume"]
+        for c in ["open", "high", "low", "close", "volume", "amount"]:
+            if c in df.columns:
+                df[c] = pd.to_numeric(df[c], errors="coerce")
+        df = df.dropna(subset=["close"]).sort_values("date").reset_index(drop=True)
+        return df.tail(days)
+    except Exception as e:
+        logger.warning("yfinance history %s 失败: %s", code, str(e)[:60])
+        return None
+
+
+# ================================================================
+# 7. akshare 备用通道（当腾讯不可用时尝试）
 # ================================================================
 def _try_akshare_spot() -> Optional[pd.DataFrame]:
     """尝试通过 akshare 获取全市场行情（可能被墙）"""

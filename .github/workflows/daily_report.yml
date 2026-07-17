@@ -2,8 +2,9 @@ name: 每日股票分析日报
 
 on:
   schedule:
-    # 北京时间 16:00 = UTC 8:00（周一到周五，收盘1小时后）
-    - cron: "0 8 * * 1-5"
+    # UTC 4:00 = 北京时间12:00（提前触发，等 cron 延迟后仍赶在16:00前完成）
+    # 脚本内自动检测：若北京时间<15:00 则等待到15:05再抓数据
+    - cron: "0 4 * * 1-5"
   workflow_dispatch:
 
 jobs:
@@ -21,6 +22,17 @@ jobs:
 
       - name: 安装依赖
         run: pip install pandas numpy requests yfinance
+
+      - name: 等待收盘（若未到15:00）
+        run: |
+          HOUR=$(TZ='Asia/Shanghai' date +%H)
+          MIN=$(TZ='Asia/Shanghai' date +%M)
+          if [ "$HOUR" -lt 15 ]; then
+            WAIT=$(( (15 - HOUR - 1) * 3600 + (60 - MIN) * 60 + 300 ))
+            echo "北京时间 $(TZ='Asia/Shanghai' date), 等待 ${WAIT}秒 至15:05..."
+            sleep $WAIT
+          fi
+          echo "开始生成: $(TZ='Asia/Shanghai' date)"
 
       - name: 生成分析报告
         run: python main.py

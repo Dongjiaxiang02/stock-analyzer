@@ -2,7 +2,7 @@ name: 每日股票分析日报
 
 on:
   schedule:
-    # 北京时间 16:00 = UTC 8:00（周一到周五）
+    # 北京时间 16:00 = UTC 8:00（周一到周五，收盘1小时后）
     - cron: "0 8 * * 1-5"
   workflow_dispatch:
 
